@@ -2,6 +2,7 @@ import os
 import os.path as osp
 import numpy as np
 import pandas as pd
+import gffutils
 import argparse
 import warnings
 
@@ -27,9 +28,14 @@ def load_pred(pred_dir, ct, chrom, pred_len=200, avg_stripe=False):
     return summed[pred_len:-pred_len, pred_len:-pred_len]
 
 
-def load_database(gtf_file):
-    pass
-
+def load_database(db_file, gtf_file):
+    if osp.isfile(db_file):
+        db = gffutils.FeatureDB(db_file)
+    else:
+        db = gffutils.create_db(gtf_file, db_file)
+    
+    return db
+    
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
