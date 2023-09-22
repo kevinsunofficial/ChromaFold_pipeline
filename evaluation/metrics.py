@@ -23,6 +23,17 @@ def topdom(pred_mat, window_size=10):
     return signal
 
 
+def interpolate(signal, bin_size=10000, smooth=False):
+    if smooth:
+        l = len(signal) * bin_size
+        sparse, compact = np.linspace(0, l, len(signal)), np.linspace(0, l, l)
+        interp_signal = np.interp(compact, sparse, signal)
+    else:
+        interp_signal = np.tile(signal, (bin_size, 1)).flatten('F')
+    
+    return interp_signal
+
+
 def similarity(signal1, signal2, window_size=100):
     if len(signal1)-len(signal2):
         raise ValueError(

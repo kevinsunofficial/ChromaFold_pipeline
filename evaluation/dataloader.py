@@ -3,8 +3,8 @@ import os.path as osp
 import numpy as np
 import pandas as pd
 import gffutils
-import argparse
 import warnings
+import sqlite3
 
 warnings.filterwarnings('ignore')
 
@@ -38,18 +38,4 @@ def load_database(db_file, gtf_file):
     
 
 if __name__=='__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--pred_dir', required=True, type=str, help='ChromaFold prediction result directory')
-    parser.add_argument('--ct', required=True, type=str, help='Full cell type name')
-    parser.add_argument('--chrom', required=True, type=int, help='Chromosome number')
-    parser.add_argument('--pred_len', required=False, type=int, default=200, help='Prediction length, default=200')
-    parser.add_argument('--avg_stripe', required=False, action='store_true', help='Average V-stripe, default=False')
-    args = parser.parse_args()
-
-    pred_dir = args.pred_dir
-    ct = args.ct
-    chrom = args.chrom
-    pred_len = args.pred_len
-    avg_stripe = args.avg_stripe
-
-    pred_mat = load_pred(pred_dir, ct, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
+    pass
