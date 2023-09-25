@@ -5,6 +5,7 @@ import pandas as pd
 import gffutils
 import warnings
 import sqlite3
+import json
 
 warnings.filterwarnings('ignore')
 
@@ -35,6 +36,46 @@ def load_database(db_file, gtf_file):
         db = gffutils.create_db(gtf_file, db_file)
     
     return db
+
+
+def parse_query(line):
+    start, end, chrom, table, featuretype = line
+    select_from = 'SELECT * FROM {} WHERE'.format(table)
+    start_req = 'start >= {}'.format(start)
+    end_req = 'end <= {}'.format(end)
+    chrom_req = 'seqid = \"chr{}\"'.format(chrom)
+    feature_req = 'featuretype = \"{}\"'.format(featuretype)
+    where_reqs = ' AND '.join([start_req, end_req, chrom_req, feature_req])
+    query = ' '.join([select_from, where_reqs])
+    
+    return query
+
+
+def generate_query(regions, chrom, table='features', featuretype='gene'):
+    regions['chrom'] = chrom
+    regions['table'] = table
+    regions['featuretype'] = featuretype
+    reqs = regions.apply(parse_query, 1)
+
+    return reqs
+
+
+def db_query(db, queries, restrictions=None):
+    res = pd.DataFrame(columns=['gene_name', 'chrom', 'start', 'end'])
+    for query in queries:
+        itr = db.execute(query).fetchall()
+        for obj in itr:
+            attr = json.loads(obj['attributes'])
+            if restrictions is not None:
+                pass
+            res.append(pd.DataFrame({
+                'gene_name': attr['gene_name'][0],
+                'chrom': obj['seqid'],
+                'start': obj['start'],
+                'end': obj['end']
+            }))
+    
+    return res            
     
 
 if __name__=='__main__':
