@@ -3,6 +3,7 @@ import os.path as osp
 import numpy as np
 import pandas as pd
 import gffutils
+from tqdm import tqdm
 import warnings
 import sqlite3
 import json
@@ -60,22 +61,58 @@ def generate_query(regions, chrom, table='features', featuretype='gene'):
     return reqs
 
 
-def db_query(db, queries, restrictions=None):
-    res = pd.DataFrame(columns=['gene_name', 'chrom', 'start', 'end'])
-    for query in queries:
+def merge_attr(attrs):
+    if not attrs:
+        raise ValueError(
+            'No attributes detected. Please consider expanding your search by changing the filters'
+        )
+    return {k: [attr[k][0] if k in attr else None for attr in attrs] for k in attrs[0].keys()}
+
+
+def check_attr(attr, filters):
+    for restr in filters:
+        if '=' not in restr:
+            raise ValueError(
+                'Cannot parse filter {}. Please doublecheck the input'.format(restr)
+            )
+        k, v = restr.strip().split('=')
+        k, v = k.strip(), v.strip()
+        if k not in attr:
+            raise ValueError(
+                'Cannot find key {} in attributes. Please doublecheck the input'.format(k)
+            )
+        if attr[k][0] != v: return False
+    
+    return True
+
+
+def db_query(db, queries, filters=[]):
+    chrom, start, end, attrs = [], [], [], []
+    valid = 0
+    for query in tqdm(queries, desc='querying database'):
         itr = db.execute(query).fetchall()
         for obj in itr:
             attr = json.loads(obj['attributes'])
-            if restrictions is not None:
-                pass
-            res.append(pd.DataFrame({
-                'gene_name': attr['gene_name'][0],
-                'chrom': obj['seqid'],
-                'start': obj['start'],
-                'end': obj['end']
-            }))
-    
-    return res            
+            if filters:
+                if not check_attr(attr, filters): continue
+            chrom.append(obj['seqid'])
+            start.append(obj['start'])
+            end.append(obj['end'])
+            attrs.append(attr)
+            valid += 1
+    if valid:
+        info = pd.DataFrame({'chrom': chrom, 'start': start, 'end': end})
+        attrs = pd.DataFrame(merge_attr(attrs))
+        res = pd.concat([info, attrs], axis=1)
+        print('Databse query completed with {} match(es)'.format(valid))
+    else:
+        res = None
+        warnings.warn(
+            'No match found. Please consider expanding your search by changing the filters',
+            RuntimeWarning
+        )
+
+    return res
     
 
 if __name__=='__main__':

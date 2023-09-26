@@ -47,6 +47,7 @@ def pipe_pair(args):
     gtf_file = args.gtf_file
     table = args.table
     featuretype = args.featuretype
+    filters = args.filters
 
     pred1 = load_pred(pred_dir, ct1, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
     pred2 = load_pred(pred_dir, ct2, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
@@ -60,7 +61,7 @@ def pipe_pair(args):
     queries = generate_query(regions, chrom=chrom, table=table, featuretype=featuretype)
 
     db = load_database(db_file, gtf_file)
-    res = db_query(db, queries)
+    res = db_query(db, queries, filters=filters)
 
     return res
 
@@ -90,10 +91,17 @@ if __name__=='__main__':
     parser.add_argument('--gtf_file', required=False, type=str, default='gencode.vM10.basic.annotation.gtf',help='GTF file directory')
     parser.add_argument('--table', required=False, type=str, default='features', help='Table name for db query')
     parser.add_argument('--featuretype', required=False, type=str, default='gene', help='Feature types to select for db query')
+    parser.add_argument('--filters', required=False, nargs='+', default=[], help='Attribute filters in database query, input each filter with \"key=value\" format')
+
+    parser.add_argument('--out_dir', required=True, type=str, help='Output directory to store the result')
 
     args = parser.parse_args()
 
     paired = args.paired
+    out_dir = args.out_dir
     
-    ret = pipe_pair(args) if paired else pipe_single(args)
+    if paired:
+        res = pipe_pair(args)
+        if res is not None:
+            res.to_csv(osp.join(out_dir, 'significant_genes.csv'), header=True, index=False)
 

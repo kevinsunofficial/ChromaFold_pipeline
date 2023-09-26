@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import scipy.stats
+from tqdm import tqdm
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -58,23 +59,23 @@ def similarity(signal1, signal2, window_size=100):
 
 
 def threshold(score, cutoff=0.7, margin=10000):
-    indices = np.argwhere(score < cutoff)
+    indices = np.argwhere(score < cutoff).flatten()
     starts, ends = [], []
-    start, end = 0, 0
-    for i in indices:
-        if not start and not end: start, end = i, i
+    s, e = 0, 0
+    for i in tqdm(indices, desc='generating valid regions'):
+        if not s and not e: s, e = i, i
         else:
-            if i - end <= margin: end = i
+            if i - e <= margin: e = i
             else:
-                starts.append(start)
-                ends.append(end)
-                start, end = i, i
-    if end != ends[-1]:
-        starts.append(start)
-        ends.append(end)
+                starts.append(s)
+                ends.append(e)
+                s, e = i, i
+    if e != ends[-1]:
+        starts.append(s)
+        ends.append(e)
     regions = pd.DataFrame({
-        'start': np.array(start) - margin,
-        'end': np.array(end) +margin
+        'start': np.array(starts) - margin,
+        'end': np.array(ends) +margin
     })
     return regions
 
