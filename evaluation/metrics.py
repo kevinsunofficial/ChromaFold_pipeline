@@ -59,10 +59,10 @@ def similarity(signal1, signal2, window_size=100):
 
 
 def threshold(score, cutoff=0.7, margin=10000):
-    indices = np.argwhere(score < cutoff).flatten()
+    indices = np.argwhere(score <= cutoff).flatten()
     starts, ends = [], []
     s, e = 0, 0
-    for i in tqdm(indices, desc='generating valid regions'):
+    for i in tqdm(indices, desc='selecting significant regions', position=0, leave=True):
         if not s and not e: s, e = i, i
         else:
             if i - e <= margin: e = i
@@ -75,7 +75,7 @@ def threshold(score, cutoff=0.7, margin=10000):
         ends.append(e)
     regions = pd.DataFrame({
         'start': np.array(starts) - margin,
-        'end': np.array(ends) +margin
+        'end': np.array(ends) + margin
     })
     return regions
 

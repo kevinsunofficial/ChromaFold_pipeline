@@ -2,6 +2,7 @@ import os
 import os.path as osp
 import numpy as np
 import pandas as pd
+import pickle
 import gffutils
 from tqdm import tqdm
 import warnings
@@ -9,6 +10,20 @@ import sqlite3
 import json
 
 warnings.filterwarnings('ignore')
+
+
+def get_metacell_profile(tile_dict, nbrs):
+    pass
+
+
+def load_region_atac(atac_dir, ct, chrom, start):
+    atacfile = pickle.load(open(osp.join(atac_dir, '{}_tile_pbulk_50bp_dict.p'.format(ct)), 'rb'))
+    atac = atacfile['chr{}'.format(chrom)][start*200: (start+700)*200]
+    scatacfile = pickle.load(open(osp.join(atac_dir, '{}_tile_500bp_dict.p'.format(ct)), 'rb'))
+    metacell = pd.read_csv(osp.join(atac_dir, '{}_metacell_mask.csv'.format(ct)), index_col=0).values
+    scatac = get_metacell_profile(scatacfile, metacell)
+
+    return atac, scatac
 
 
 def load_pred(pred_dir, ct, chrom, pred_len=200, avg_stripe=False):
@@ -89,7 +104,7 @@ def check_attr(attr, filters):
 def db_query(db, queries, filters=[]):
     chrom, start, end, attrs = [], [], [], []
     valid = 0
-    for query in tqdm(queries, desc='querying database'):
+    for query in tqdm(queries, desc='querying database', position=0, leave=True):
         itr = db.execute(query).fetchall()
         for obj in itr:
             attr = json.loads(obj['attributes'])
