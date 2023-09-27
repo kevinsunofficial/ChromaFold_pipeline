@@ -1,16 +1,18 @@
-import subprocess
 import os
 import os.path as osp
 import numpy as np
 import pandas as pd
 import scipy
 import scipy.stats
+from scipy.sparse import csr_matrix
+import matplotlib.pyplot as plt
 import gffutils
 import argparse
 import sqlite3
 import json
 from dataloader import *
 from metrics import *
+from plots import *
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -31,7 +33,11 @@ def pipe_single(args):
     return signal
 
 
-def pipe_pair(args):
+def plot_gene(args, chrom, start, gene):
+    pass
+
+
+def pairwise_difference(args):
     pred_dir = args.pred_dir
     ct1, ct2 = args.ct[:2]
     chrom = args.chrom
@@ -68,8 +74,12 @@ def pipe_pair(args):
 
     if res is not None:
         res.to_csv(osp.join(out_dir, 'chr{}_significant_genes.csv'.format(chrom)), header=True, index=False)
+    
+        for _, row in res.iterrows():
+            plot_gene(args, row['chrom'], row['start'], row['gene'])
 
     return res
+
 
 
 if __name__=='__main__':
@@ -78,6 +88,7 @@ if __name__=='__main__':
     print('Parsing arguments...')
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('--input_dir', required=True, type=str, help='ChromaFold multiome input directory')
     parser.add_argument('--pred_dir', required=True, type=str, help='ChromaFold prediction result directory')
     parser.add_argument('--paired', required=False, action='store_true', default=False, help='Indicate whether the analysis is for paired prediction')
     parser.add_argument('--ct', required=True, nargs='+', default=[], help='Full cell type names, for paired this would be two cell types')
@@ -109,10 +120,10 @@ if __name__=='__main__':
     paired = args.paired
     out_dir = args.out_dir
     
-    if paired:
-        res = pipe_pair(args)
-    else:
-        res = pipe_single(args)
+    # if paired:
+    #     res = pipe_pair(args)
+    # else:
+    #     res = pipe_single(args)
     
     print('DONE')
     

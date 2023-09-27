@@ -3,6 +3,7 @@ import os.path as osp
 import numpy as np
 import pandas as pd
 import scipy
+from scipy.sparse import csr_matrix
 import torch
 from sklearn import metrics
 import pickle
