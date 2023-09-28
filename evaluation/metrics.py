@@ -42,23 +42,39 @@ def interpolate(signal, bin_size=10000, pattern='smooth'):
     return interp_signal
 
 
-def similarity(signal1, signal2, window_size=100):
-    if len(signal1)-len(signal2):
-        raise ValueError(
-            'Different signal1.length ({}) and signal2.length ({})'.format(len(signal1), len(signal2))
-        )
+def sim_pearson(signal1, signal2, window_size=100):
     l = len(signal1)
     score = np.array([
         scipy.stats.pearsonr(
             signal1[i:i+window_size], signal2[i:i+window_size]
         )[0] for i in range(l-window_size)
     ])
-    score[np.isnan(score)] = 1
+    score[score != score] = 1
 
     return score
 
 
-def threshold(score, cutoff=0.7, margin=10000):
+def sim_difference(signal1, signal2):
+    score = signal1 - signal2
+    score[score != score] = 1
+
+    return score
+
+
+def similarity(signal1, signal2, kernel='diff', window_size=100):
+    if len(signal1)-len(signal2):
+        raise ValueError(
+            'Different signal1.length ({}) and signal2.length ({})'.format(len(signal1), len(signal2))
+        )
+    if kernel == 'diff':
+        score = sim_difference(signal1, signal2)
+    elif kernel == 'pearson':
+        score = sim_pearson(signal1, signal2, window_size=window_size)
+    
+    return score
+
+
+def threshold(score, cutoff=0.7, margin=1000):
     indices = np.argwhere(score <= cutoff).flatten()
     starts, ends = [], []
     s, e = 0, 0

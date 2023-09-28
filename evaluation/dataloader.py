@@ -15,23 +15,25 @@ import json
 warnings.filterwarnings('ignore')
 
 
-def load_ctcf(ctcf_path, chrom, start):
+def load_ctcf(ctcf_path, chrom, start=None):
     ctcf_all = pickle.load(open(ctcf_path, 'rb'))
-    ctcf = ctcf_all['chr{}'.format(chrom)].toarray()[0][start*200: (start+700)*200]
+    ctcf = ctcf_all['chr{}'.format(chrom)].toarray()[0]
+    if start is not None:
+        ctcf = ctcf[start*200: (start+700)*200]
 
     return ctcf
 
 
-def load_atac(atac_path, chrom, start):
+def load_atac(atac_path, chrom, start=None):
     atac_all = pickle.load(open(atac_path, 'rb'))
-    atac = atac_all['chr{}'.format(chrom)].flatten()[start*200: (start+700)*200]
+    atac = atac_all['chr{}'.format(chrom)].flatten()
+    if start is not None:
+        atac = atac[start*200: (start+700)*200]
 
     return atac
 
 
-def load_scatac(scatac_path, metacell_path, chrom, start):
-    scatac_pre = pickle.load(open(scatac_path, 'rb'))['chr{}'.format(chrom)]
-    metacell = csr_matrix(pd.read_csv(metacell_path, index_col=0).values)
+def process_scatac(scatac_pre, metacell, start):
     tmp = torch.tensor((metacell * scatac_pre)[:, start*20:(start+700)*20].toarray()).T
 
     size, eps = tmp.shape[1], 1e-8
@@ -51,17 +53,28 @@ def load_scatac(scatac_path, metacell_path, chrom, start):
     return scatac
 
 
-def load_multiome(input_dir, ct, chrom, start, genome='mm10'):
+def load_scatac(scatac_path, metacell_path, chrom, start=None):
+    scatac_pre = pickle.load(open(scatac_path, 'rb'))['chr{}'.format(chrom)]
+    metacell = csr_matrix(pd.read_csv(metacell_path, index_col=0).values)
+
+    if start is not None:
+        scatac = process_scatac(scatac_pre, metacell, start)
+        return scatac, metacell
+    else:
+        return scatac_pre, metacell
+
+
+def load_multiome(input_dir, ct, chrom, start=None, genome='mm10'):
     ctcf_path = osp.join(input_dir, 'dna', '{}_ctcf_motif_score.p'.format(genome))
     atac_path = osp.join(input_dir, 'atac', '{}_tile_pbulk_50bp_dict.p'.format(ct))
     scatac_path = osp.join(input_dir, 'atac', '{}_tile_500bp_dict.p'.format(ct))
     metacell_path = osp.join(input_dir, 'atac', '{}_metacell_mask.csv'.format(ct))
 
-    ctcf = load_ctcf(ctcf_path, chrom, start)
-    atac = load_atac(atac_path, chrom, start)
-    scatac = load_scatac(scatac_path, metacell_path, chrom, start)
+    ctcf = load_ctcf(ctcf_path, chrom, start=start)
+    atac = load_atac(atac_path, chrom, start=start)
+    scatac, metacell = load_scatac(scatac_path, metacell_path, chrom, start=start)
 
-    return ctcf, atac, scatac
+    return ctcf, atac, scatac, metacell
 
 
 def load_pred(pred_dir, ct, chrom, pred_len=200, avg_stripe=False):
@@ -97,9 +110,10 @@ def parse_query(line):
     select_from = 'SELECT * FROM {} WHERE'.format(table)
     start_req = 'start >= {}'.format(start)
     end_req = 'end <= {}'.format(end)
+    len_req = 'end - start >= 1000'
     chrom_req = 'seqid = \"chr{}\"'.format(chrom)
     feature_req = 'featuretype = \"{}\"'.format(featuretype)
-    where_reqs = ' AND '.join([start_req, end_req, chrom_req, feature_req])
+    where_reqs = ' AND '.join([start_req, end_req, len_req, chrom_req, feature_req])
     query = ' '.join([select_from, where_reqs])
     
     return query
@@ -165,7 +179,15 @@ def db_query(db, queries, filters=[]):
             RuntimeWarning
         )
 
-    return res
+    return res, valid
+
+
+def parse_res(row):
+    start = int(max(row['start']//1e4 - 400, 0))
+    locstart, locend = row['start']/1e4 - start, row['end']/1e4 - start
+    gene = row['gene_name']
+
+    return start, locstart, locend, gene
     
 
 if __name__=='__main__':
