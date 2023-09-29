@@ -100,6 +100,7 @@ def load_database(db_file, gtf_file):
     if osp.isfile(db_file):
         db = gffutils.FeatureDB(db_file)
     else:
+        print('creating db from raw. This might take a while.')
         db = gffutils.create_db(gtf_file, db_file)
     
     return db

@@ -33,6 +33,22 @@ def pipe_single(args):
     return signal
 
 
+def sort_significance(args, res, valid, pred1, pred2):
+    topdom_window_size = args.topdom_window
+    topdom_cutoff = args.topdom_cutoff
+
+    scores = []
+    for i in range(valid):
+        start, locstart, locend, _ = parse_res(res.iloc[i])
+        score = verification(pred1, pred2, start, locstart, locend, window_size=topdom_window_size, cutoff=topdom_cutoff)
+        scores.append(score)
+    
+    res['significance'] = scores
+    res = res.sort_values(by=['significance'], ascending=False)
+
+    return res
+
+
 def plot_gene(args, data, start, locstart, locend, gene):
     fig_dir = args.fig_dir
     ct1, ct2 = args.ct[:2]
@@ -73,6 +89,7 @@ def pairwise_difference(args):
     table = args.table
     featuretype = args.featuretype
     filters = args.filters
+    numplot = args.num_plot
     out_dir = args.out_dir
 
     print('Loading multiome data...')
@@ -96,17 +113,20 @@ def pairwise_difference(args):
     regions = threshold(simscore, cutoff=thresh_cutoff, margin=thresh_margin)
     queries = generate_query(regions, chrom=chrom, table=table, featuretype=featuretype)
 
-    print('Querying databse...')
+    print('Querying database...')
     db = load_database(db_file, gtf_file)
     res, numvalid = db_query(db, queries, filters=filters)
 
     if numvalid:
+        print('Sorting query result by significance')
+        res = sort_significance(args, res, numvalid, pred1, pred2)
         res.to_csv(osp.join(out_dir, 'chr{}_significant_genes.csv'.format(chrom)), header=True, index=False)
         print('Plotting result...')
-        for i in tqdm(range(numvalid), desc='plotting result', position=0, leave=True):
-            row = res.iloc[i]
-            start, locstart, locend, gene = parse_res(row)
-            plot_gene(args, data, start, locstart, locend, gene)
+        if numplot is not None and numplot > 0:
+            for i in tqdm(range(numplot), desc='plotting result', position=0, leave=True):
+                row = res.iloc[i]
+                start, locstart, locend, gene = parse_res(row)
+                plot_gene(args, data, start, locstart, locend, gene)
 
     return res
 
@@ -127,10 +147,10 @@ if __name__=='__main__':
     parser.add_argument('--avg_stripe', required=False, action='store_true', help='Average V-stripe, default=False')
 
     parser.add_argument('--topdom_window', required=False, type=int, default=10, help='Window size for running TopDom, default=10')
-    parser.add_argument('--topdom_cutoff', required=False, type=float, default=None, help='Cutoff for running TopDom, anything below will be set to cutoff, default=None')
+    parser.add_argument('--topdom_cutoff', required=False, type=float, default=0, help='Cutoff for running TopDom, anything below will be set to cutoff, default=0')
 
     parser.add_argument('--kernel', required=False, type=str, default='diff', help='Kernel used when evaluating the similarity of two TopDom lists, default=diff')
-    parser.add_argument('--similar_window', required=False, type=int, default=100, help='Window size for running sliding window Pearson Correlation, default=100')
+    parser.add_argument('--similar_window', required=False, type=int, default=10, help='Window size for running sliding window Pearson Correlation, default=10')
 
     parser.add_argument('--bin_size', required=False, type=int, default=10000, help='Bin size when running ChromaFold, default=10kb=10000')
     parser.add_argument('--pattern', required=False, type=str, default=None, help='Filling behavior for TopDom score interpolation, default=None')
@@ -144,6 +164,7 @@ if __name__=='__main__':
     parser.add_argument('--featuretype', required=False, type=str, default='gene', help='Feature types to select for db query')
     parser.add_argument('--filters', required=False, nargs='+', default=[], help='Attribute filters in database query, input each filter with \"key=value\" format')
 
+    parser.add_argument('--num_plot', required=False, type=int, default=0, help='Number of plots to generate, from top significance, default=0')
     parser.add_argument('--out_dir', required=True, type=str, help='Output directory to store the db query result')
     parser.add_argument('--fig_dir', required=True, type=str, help='Figure directory to put the generated figures')
 
