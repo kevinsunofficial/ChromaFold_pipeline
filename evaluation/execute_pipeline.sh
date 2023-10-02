@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-for ((i=2; i<=19; i++))
+for ((i=1; i<=19; i++))
 do
     time python pipeline.py --input_dir /data/leslie/suny4/processed_input/ \
                        --pred_dir /data/leslie/suny4/predictions/chromafold/ \
