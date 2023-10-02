@@ -172,7 +172,7 @@ def db_query(db, queries, filters=[]):
         info = pd.DataFrame({'chrom': chrom, 'start': start, 'end': end})
         attrs = pd.DataFrame(merge_attr(attrs))
         res = pd.concat([info, attrs], axis=1)
-        print('Databse query completed with {} match(es)'.format(valid))
+        print('databse query completed with {} match(es)'.format(valid))
     else:
         res = None
         warnings.warn(

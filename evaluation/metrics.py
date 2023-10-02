@@ -56,7 +56,7 @@ def sim_pearson(signal1, signal2, window_size=10):
 
 def sim_difference(signal1, signal2):
     score = signal1 - signal2
-    score[score != score] = 1
+    score[score != score] = 0
 
     return score
 
