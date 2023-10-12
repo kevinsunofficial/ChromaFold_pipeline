@@ -10,10 +10,46 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
+def quantile_norm(pred1, pred2):
+    if pred1.shape[0] - pred1.shape[1]:
+        raise ValueError(
+            'Matrix 1 is not square ({}, {})'.format(pred1.shape[0], pred1.shape[1])
+        )
+    if pred2.shape[0] - pred2.shape[1]:
+        raise ValueError(
+            'Matrix 2 is not square ({}, {})'.format(pred2.shape[0], pred2.shape[1])
+        )
+    if pred1.shape[0] - pred2.shape[0]:
+        raise ValueError(
+            'Matrix dimension mismatch ({} vs {})'.format(pred1.shape[0], pred2.shape[0])
+        )
+    l = pred1.shape[0]
+    pred1_diag = np.array([
+        np.pad(np.diagonal(pred1, offset=i), (0, i), 'constant') for i in range(200)
+    ]).T
+    pred2_diag = np.array([
+        np.pad(np.diagonal(pred2, offset=i), (0, i), 'constant') for i in range(200)
+    ]).T
+    pred = np.column_stack((pred1_diag.ravel(), pred2_diag.ravel()))
+    df, df_sort = pd.DataFrame(pred), pd.DataFrame(np.sort(pred, axis=0))
+    df_mean = df_sort.mean(axis=1)
+    df_mean.index += 1
+    df_qn = df.rank(method='min').stack().astype(int).map(df_mean).unstack()
+    pred1_stripe, pred2_stripe = df_qn[0].values.reshape(-1, 200), df_qn[1].values.reshape(-1, 200)
+
+    pred1_qn, pred2_qn = np.zeros_like(pred1), np.zeros_like(pred2)
+    for i in range(200):
+        idx = np.arange(l - i, dtype=int)
+        pred1_qn[idx, idx+i] = pred1_qn[idx+i, idx] = pred1_stripe[:l-i, i]
+        pred2_qn[idx, idx+i] = pred2_qn[idx+i, idx] = pred2_stripe[:l-i, i]
+    
+    return pred1_qn, pred2_qn
+
+
 def topdom(pred_mat, window_size=10, cutoff=0):
     if pred_mat.shape[0]-pred_mat.shape[1]:
         raise ValueError(
-            'Dimension mismatch ({}, {})'.format(pred_mat.shape[0], pred_mat.shape[1])
+            'Matrix is not square ({}, {})'.format(pred_mat.shape[0], pred_mat.shape[1])
         )
     pad_mat = np.pad(pred_mat, window_size, mode='constant', constant_values=np.nan)
     dim = pad_mat.shape[0]

@@ -99,6 +99,9 @@ def pairwise_difference(args):
     print('Loading predictions...')
     pred1 = load_pred(pred_dir, ct1, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
     pred2 = load_pred(pred_dir, ct2, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
+
+    print('Normalizing predictions...')
+    pred1, pred2 = quantile_norm(pred1, pred2)
     data = [ctcf, atac1, atac2, scatac1, scatac2, metacell1, metacell2, pred1, pred2]
 
     print('Calculating TopDom insulation score...')
