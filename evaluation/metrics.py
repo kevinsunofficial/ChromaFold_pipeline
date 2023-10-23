@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import scipy.stats
+from scipy.signal import find_peaks
 from tqdm import tqdm
 import warnings
 
@@ -46,7 +47,7 @@ def quantile_norm(pred1, pred2):
     return pred1_qn, pred2_qn
 
 
-def topdom(pred_mat, window_size=10, cutoff=0):
+def topdom(pred_mat, window_size=10, cutoff=None):
     if pred_mat.shape[0]-pred_mat.shape[1]:
         raise ValueError(
             'Matrix is not square ({}, {})'.format(pred_mat.shape[0], pred_mat.shape[1])
@@ -58,6 +59,20 @@ def topdom(pred_mat, window_size=10, cutoff=0):
     ][window_size+1: -window_size])
     if cutoff is not None:
         signal[signal<cutoff] = cutoff
+
+    return signal
+
+
+def region_topdom(pred_mat, window_size=10):
+    if pred_mat.shape[0]-pred_mat.shape[1]:
+        raise ValueError(
+            'Matrix is not square ({}, {})'.format(pred_mat.shape[0], pred_mat.shape[1])
+        )
+    pad_mat = np.pad(pred_mat, window_size, mode='constant', constant_values=np.nan)
+    dim = pad_mat.shape[0]
+    signal = np.array([
+        np.nanmean(pad_mat[i-window_size:i+window_size, i-window_size:i+window_size]) for i in range(dim)
+    ][window_size:-window_size])
 
     return signal
 
@@ -110,11 +125,122 @@ def similarity(signal1, signal2, kernel='diff', window_size=10):
     return score
 
 
+def get_tads(mat, sizes, prominence=0.25):
+    signal = np.array([region_topdom(mat, i) for i in sizes])
+    rows, idxs = [], []
+    for i in range(len(signal)):
+        idx = find_peaks(signal[i], prominence=(prominence,))[0]
+        row = np.full_like(idx, i)
+        rows.append(row)
+        idxs.append(idx)
+    tads = np.array([
+        np.concatenate(rows, axis=None), np.concatenate(idxs, axis=None)
+    ])
+
+    return tads
+
+
+def tads_to_coords(tads, sizes):
+    coords = np.array([
+        tads[1] - sizes[tads[0]], tads[1] + sizes[tads[0]]
+    ])
+
+    return coords
+
+
+def merge_coords(coords, sizes, close=5):
+    df = pd.DataFrame({'x': coords[0], 'y': coords[1]})
+    merged = df.groupby('x', as_index=False).agg({'y': 'max'})
+    merged['s'] = (merged.y - merged.x) // 2
+    merged = merged.sort_values(by=['x']).reset_index(drop=True)
+
+    i = 0
+    curx, cury, curs = merged.iloc[i]
+
+    while i+1 < merged.shape[0]:
+        x, y, s = merged.iloc[i+1]
+        if s == curs:
+            if abs(x - curx) <= close:
+                curx, cury = min(curx, x), max(cury, y)
+                curs = (cury - curx) // 2
+                merged = merged.drop(i+1, axis=0).reset_index(drop=True)
+            else:
+                curx, cury, curs = x, y, s
+                i += 1
+        else:
+            if abs(x - curx) <= close or abs(y - cury) <= close:
+                curx, cury = min(curx, x), max(cury, y)
+                curs = (cury - curx) // 2
+                merged = merged.drop(i+1, axis=0).reset_index(drop=True)
+            else:
+                curx, cury, curs = x, y, s
+                i += 1
+        merged.iloc[i] = [curx, cury, curs]
+    
+    return merged.values.T
+
+
+def get_tad_coords(pred1, pred2, mindim=10, maxdim=100, numdim=10, close=5):
+
+    def generate_sizes(mindim, maxdim, numdim):
+        mindim, maxdim = max(1, mindim), min(100, maxdim)
+        return np.linspace(mindim, maxdim, num=numdim, dtype=int)
+    
+    sizes = generate_sizes(mindim, maxdim, numdim)
+    tads1, tads2 = get_tads(pred1, sizes), get_tads(pred2, sizes)
+    alltads = np.concatenate((tads1, tads2), axis=1)
+    allcoords = tads_to_coords(alltads, sizes)
+    coords = merge_coords(allcoords, sizes, close)
+
+    return coords
+
+
+def rank_coords_simscore(pred1, pred2, coords, keep_dir=False):
+    xs, ys, ss, diff_dirs, abs_scores = [], [], [], [], []
+    for i in range(coords.shape[1]):
+        x, y, s = coords[:, i]
+        area1, area2 = pred1[x:y+1, x:y+1], pred2[x:y+1, x:y+1]
+        area_diff = area1 - area2
+        diff_dir = np.mean(area_diff)
+        abs_score = np.std(area_diff) * np.ptp(area_diff)
+        xs.append(x)
+        ys.append(y)
+        ss.append(s)
+        diff_dirs.append(diff_dir)
+        abs_scores.append(abs_score)
+    df = pd.DataFrame({
+        'x_coord': xs, 'y_coord': ys, 'window_size': ss,
+        'diff_direction': diff_dirs, 'abs_diff_score': abs_scores
+    })
+    ranked = df.sort_values(by=['abs_diff_score'], ignore_index=True, ascending=False)
+
+    if keep_dir:
+        simscore = np.zeros((2, pred1.shape[0]))
+        for i in range(ranked.shape[0]):
+            x, y, _, diff_dir, abs_score = ranked.iloc[i]
+            x, y = int(x), int(y)
+            for j in range(x, y+1):
+                if not simscore[0, j]:
+                    simscore[:, j] = [abs_score, diff_dir]
+    else:
+        simscore = np.zeros(pred1.shape[0])
+        for i in range(ranked.shape[0]):
+            x, y, _, _, abs_score = ranked.iloc[i]
+            x, y = int(x), int(y)
+            simscore[x: y+1] = np.maximum(
+                simscore[x: y+1], np.full(y+1-x, abs_score),
+                out=simscore[x: y+1])
+
+    return ranked, simscore
+
+
 def threshold(score, cutoff=0.7, kernel='diff', margin=1000):
     if kernel == 'diff':
-        indices = np.argwhere(np.abs(score)>=cutoff).flatten()
+        indices = np.argwhere(np.abs(score) >= cutoff).flatten()
     elif kernel == 'pearson':
         indices = np.argwhere(score <= cutoff).flatten()
+    elif kernel == 'tad_diff':
+        indices = np.argwhere(score >= cutoff).flatten()
     if len(indices) == 0:
         raise ValueError(
             'No valid result above threshold. Please consider expanding your search by changing the filters'
@@ -148,7 +274,7 @@ def gaussian(n, sigma):
     return kernel
 
 
-def verification(pred1, pred2, start, locstart, locend, window_size, cutoff=0):
+def verification(pred1, pred2, start, window_size, cutoff=0):
     if pred1.shape[0]-pred1.shape[1]:
         raise ValueError(
             'Dimension mismatch ({}, {})'.format(pred1.shape[0], pred1.shape[1])
@@ -172,6 +298,18 @@ def verification(pred1, pred2, start, locstart, locend, window_size, cutoff=0):
     normalscore = score.dot(normal)
 
     return normalscore
+
+
+def match_tad_score(ranked, start):
+    this_diff_dir, this_abs_score = 0, 0
+    for i in range(ranked.shape[0]):
+        x, y, _, diff_dir, abs_score = ranked.iloc[i]
+        if x <= start <= y:
+            this_diff_dir, this_abs_score = diff_dir, abs_score
+            return this_diff_dir, this_abs_score
+    
+    return this_diff_dir, this_abs_score
+
 
 
 if __name__=='__main__':

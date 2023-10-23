@@ -33,18 +33,25 @@ def pipe_single(args):
     return signal
 
 
-def sort_significance(args, res, valid, pred1, pred2):
-    topdom_window_size = args.topdom_window
-    topdom_cutoff = args.topdom_cutoff
-
-    scores = []
+def sort_significance(args, res, valid, pred1, pred2, kernel, ranked=None):
+    scores, directions = [], []
     for i in range(valid):
-        start, locstart, locend, _ = parse_res(res.iloc[i])
-        score = verification(pred1, pred2, start, locstart, locend, window_size=topdom_window_size, cutoff=topdom_cutoff)
+        start, _, _, _ = parse_res(res.iloc[i])
+        if kernel == 'tad_diff':
+            direction, score = match_tad_score(ranked, start)
+        else:
+            topdom_window_size = args.topdom_window
+            topdom_cutoff = args.topdom_cutoff
+            score = verification(
+                pred1, pred2, start, 
+                window_size=topdom_window_size, cutoff=topdom_cutoff)
+            direction = 0
         scores.append(score)
+        directions.append(direction)
     
     res['significance'] = scores
-    res = res.sort_values(by=['significance'], ascending=False)
+    res['directions'] = directions
+    res = res.sort_values(by=['significance'], ignore_index=True, ascending=False)
 
     return res
 
@@ -113,7 +120,7 @@ def pairwise_difference(args):
     simscore = interpolate(raw_simscore, bin_size=bin_size, pattern=pattern)
 
     print('Selecting significant regions...')
-    regions = threshold(simscore, cutoff=thresh_cutoff, margin=thresh_margin)
+    regions = threshold(simscore, cutoff=thresh_cutoff, kernel=kernel, margin=thresh_margin)
     queries = generate_query(regions, chrom=chrom, table=table, featuretype=featuretype)
 
     print('Querying database...')
@@ -122,8 +129,8 @@ def pairwise_difference(args):
 
     if numvalid:
         print('Sorting query result by significance')
-        res = sort_significance(args, res, numvalid, pred1, pred2)
-        res.to_csv(osp.join(out_dir, 'chr{}_significant_genes.csv'.format(chrom)), header=True, index=False)
+        res = sort_significance(args, res, numvalid, pred1, pred2, kernel)
+        res.to_csv(osp.join(out_dir, f'chr{chrom}_significant_genes_{kernel}.csv'), header=True, index=False)
         print('Plotting result...')
         if numplot is not None and numplot > 0:
             for i in tqdm(range(numplot), desc='plotting result', position=0, leave=True):
@@ -133,6 +140,71 @@ def pairwise_difference(args):
 
     return res
 
+
+def pairwise_difference_tads(args):
+    input_dir = args.input_dir
+    pred_dir = args.pred_dir
+    ct1, ct2 = args.ct[:2]
+    chrom = args.chrom
+    pred_len = args.pred_len
+    avg_stripe = args.avg_stripe
+
+    mindim = args.mindim
+    maxdim = args.maxdim
+    numdim = args.numdim
+    close = args.close
+    keep_dir = args.keep_dir
+
+    kernel = args.kernel
+    bin_size = args.bin_size
+    pattern = args.pattern
+    thresh_cutoff = args.thresh_cutoff
+    thresh_margin = args.thresh_margin
+    db_file = args.db_file
+    gtf_file = args.gtf_file
+    table = args.table
+    featuretype = args.featuretype
+    filters = args.filters
+    numplot = args.num_plot
+    out_dir = args.out_dir
+
+    print('Loading multiome data...')
+    ctcf, atac1, scatac1, metacell1 = load_multiome(input_dir, ct1, chrom, start=None)
+    _, atac2, scatac2, metacell2 = load_multiome(input_dir, ct2, chrom, start=None)
+
+    print('Loading predictions...')
+    pred1 = load_pred(pred_dir, ct1, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
+    pred2 = load_pred(pred_dir, ct2, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
+
+    print('Normalizing predictions...')
+    pred1, pred2 = quantile_norm(pred1, pred2)
+    data = [ctcf, atac1, atac2, scatac1, scatac2, metacell1, metacell2, pred1, pred2]
+
+    print('Calculating TADs Similarity...')
+    coords = get_tad_coords(pred1, pred2, mindim=mindim, maxdim=maxdim, numdim=numdim, close=close)
+    ranked, raw_simscore = rank_coords_simscore(pred1, pred2, coords, keep_dir=keep_dir)
+    simscore = interpolate(raw_simscore, bin_size=bin_size, pattern=pattern)
+
+    print('Selecting significant regions...')
+    regions = threshold(simscore, cutoff=thresh_cutoff, kernel=kernel, margin=thresh_margin)
+    queries = generate_query(regions, chrom=chrom, table=table, featuretype=featuretype)
+
+    print('Querying database...')
+    db = load_database(db_file, gtf_file)
+    res, numvalid = db_query(db, queries, filters=filters)
+
+    if numvalid:
+        print('Sorting query result by significance')
+        res = sort_significance(args, res, numvalid, pred1, pred2, kernel, ranked)
+        res.to_csv(osp.join(out_dir, f'chr{chrom}_significant_genes_{kernel}.csv'), header=True, index=False)
+        print('Plotting result...')
+        if numplot is not None and numplot > 0:
+            for i in tqdm(range(numplot), desc='plotting result', position=0, leave=True):
+                row = res.iloc[i]
+                start, locstart, locend, gene = parse_res(row)
+                plot_gene(args, data, start, locstart, locend, gene)
+
+    return res
 
 
 if __name__=='__main__':
@@ -150,7 +222,12 @@ if __name__=='__main__':
     parser.add_argument('--avg_stripe', required=False, action='store_true', help='Average V-stripe, default=False')
 
     parser.add_argument('--topdom_window', required=False, type=int, default=10, help='Window size for running TopDom, default=10')
-    parser.add_argument('--topdom_cutoff', required=False, type=float, default=0, help='Cutoff for running TopDom, anything below will be set to cutoff, default=0')
+    parser.add_argument('--topdom_cutoff', required=False, type=float, default=None, help='Cutoff for running TopDom, anything below will be set to cutoff, default=None')
+
+    parser.add_argument('--min_dim', required=False, type=int, default=10, help='Minimum window size for running Region TopDom, default=10')
+    parser.add_argument('--max_dim', required=False, type=int, default=100, help='Maximum window size for running Region TopDom, default=100')
+    parser.add_argument('--num_dim', required=False, type=int, default=25, help='Number of window size for running Region TopDom, default=25')
+    parser.add_argument('--close', required=False, type=int, default=5, help='Margin of error allowed for merging coordinates, default=5')
 
     parser.add_argument('--kernel', required=False, type=str, default='diff', help='Kernel used when evaluating the similarity of two TopDom lists, default=diff')
     parser.add_argument('--similar_window', required=False, type=int, default=10, help='Window size for running sliding window Pearson Correlation, default=10')

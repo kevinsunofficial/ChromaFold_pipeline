@@ -77,6 +77,19 @@ def load_multiome(input_dir, ct, chrom, start=None, genome='mm10'):
     return ctcf, atac, scatac, metacell
 
 
+def set_diagonal(mat, value=0):
+    if mat.shape[0] - mat.shape[1]:
+        raise ValueError(
+            'Matrix is not square ({}, {})'.format(mat.shape[0], mat.shape[1])
+        )
+    l = mat.shape[0]
+    idx = np.arange(l)
+    mat[idx[:-1], idx[1:]], mat[idx[1:], idx[:-1]] = value, value
+
+    return mat
+
+
+
 def load_pred(pred_dir, ct, chrom, pred_len=200, avg_stripe=False):
     file = osp.join(pred_dir, ct, 'prediction_{}_chr{}.npz'.format(ct, chrom))
     temp = np.load(file)['arr_0']
@@ -93,7 +106,9 @@ def load_pred(pred_dir, ct, chrom, pred_len=200, avg_stripe=False):
             np.zeros((pred_len, mat.shape[1])), mat
         ))[:chrom_len+pred_len, :chrom_len+pred_len])/2
     
-    return summed[pred_len:-pred_len, pred_len:-pred_len]
+    pred = set_diagonal(summed[pred_len:-pred_len, pred_len:-pred_len])
+
+    return pred
 
 
 def load_database(db_file, gtf_file):
