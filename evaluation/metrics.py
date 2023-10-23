@@ -180,13 +180,13 @@ def merge_coords(coords, sizes, close=5):
     return merged.values.T
 
 
-def get_tad_coords(pred1, pred2, mindim=10, maxdim=100, numdim=10, close=5):
+def get_tad_coords(pred1, pred2, min_dim=10, max_dim=100, num_dim=10, close=5):
 
-    def generate_sizes(mindim, maxdim, numdim):
-        mindim, maxdim = max(1, mindim), min(100, maxdim)
-        return np.linspace(mindim, maxdim, num=numdim, dtype=int)
+    def generate_sizes(min_dim, max_dim, num_dim):
+        min_dim, maxdim = max(1, min_dim), min(100, max_dim)
+        return np.linspace(min_dim, max_dim, num=num_dim, dtype=int)
     
-    sizes = generate_sizes(mindim, maxdim, numdim)
+    sizes = generate_sizes(min_dim, max_dim, num_dim)
     tads1, tads2 = get_tads(pred1, sizes), get_tads(pred2, sizes)
     alltads = np.concatenate((tads1, tads2), axis=1)
     allcoords = tads_to_coords(alltads, sizes)

@@ -149,9 +149,9 @@ def pairwise_difference_tads(args):
     pred_len = args.pred_len
     avg_stripe = args.avg_stripe
 
-    mindim = args.mindim
-    maxdim = args.maxdim
-    numdim = args.numdim
+    min_dim = args.min_dim
+    max_dim = args.max_dim
+    num_dim = args.num_dim
     close = args.close
     keep_dir = args.keep_dir
 
@@ -181,7 +181,7 @@ def pairwise_difference_tads(args):
     data = [ctcf, atac1, atac2, scatac1, scatac2, metacell1, metacell2, pred1, pred2]
 
     print('Calculating TADs Similarity...')
-    coords = get_tad_coords(pred1, pred2, mindim=mindim, maxdim=maxdim, numdim=numdim, close=close)
+    coords = get_tad_coords(pred1, pred2, min_dim=min_dim, max_dim=max_dim, num_dim=num_dim, close=close)
     ranked, raw_simscore = rank_coords_simscore(pred1, pred2, coords, keep_dir=keep_dir)
     simscore = interpolate(raw_simscore, bin_size=bin_size, pattern=pattern)
 
