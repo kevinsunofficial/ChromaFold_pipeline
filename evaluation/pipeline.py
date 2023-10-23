@@ -56,7 +56,7 @@ def sort_significance(args, res, valid, pred1, pred2, kernel, ranked=None):
     return res
 
 
-def plot_gene(args, data, start, locstart, locend, gene):
+def plot_gene(args, data, rank, start, locstart, locend, gene):
     fig_dir = args.fig_dir
     ct1, ct2 = args.ct[:2]
 
@@ -66,7 +66,7 @@ def plot_gene(args, data, start, locstart, locend, gene):
     scatac1 = process_scatac(scatac_pre1, metacell1, start)
     scatac2 = process_scatac(scatac_pre2, metacell2, start)
 
-    savefig_dir = osp.join(fig_dir, 'chr{}'.format(chrom), 'chr{}_{}'.format(chrom, gene))
+    savefig_dir = osp.join(fig_dir, f'chr{chrom}', f'{rank}_chr{chrom}_{gene}')
     if not osp.exists(savefig_dir):
         os.makedirs(savefig_dir)
 
@@ -136,7 +136,7 @@ def pairwise_difference(args):
             for i in tqdm(range(numplot), desc='plotting result', position=0, leave=True):
                 row = res.iloc[i]
                 start, locstart, locend, gene = parse_res(row)
-                plot_gene(args, data, start, locstart, locend, gene)
+                plot_gene(args, data, i+1, start, locstart, locend, gene)
 
     return res
 
@@ -196,13 +196,15 @@ def pairwise_difference_tads(args):
     if numvalid:
         print('Sorting query result by significance')
         res = sort_significance(args, res, numvalid, pred1, pred2, kernel, ranked)
+        if not osp.exists(out_dir):
+            os.makedirs(out_dir)
         res.to_csv(osp.join(out_dir, f'chr{chrom}_significant_genes_{kernel}.csv'), header=True, index=False)
         print('Plotting result...')
         if numplot is not None and numplot > 0:
             for i in tqdm(range(numplot), desc='plotting result', position=0, leave=True):
                 row = res.iloc[i]
                 start, locstart, locend, gene = parse_res(row)
-                plot_gene(args, data, start, locstart, locend, gene)
+                plot_gene(args, data, i+1, start, locstart, locend, gene)
 
     return res
 

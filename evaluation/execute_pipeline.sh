@@ -9,8 +9,8 @@ do
                     --kernel tad_diff --pattern smooth --thresh_cutoff 1 \
                     --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
                     --filters gene_type=protein_coding \
-                    --num_plot 10 --out_dir /data/leslie/suny4/figures/darko_wt_ctcfhet/query/ \
-                    --fig_dir /data/leslie/suny4/figures/darko_wt_ctcfhet/
+                    --num_plot 10 --out_dir /data/leslie/suny4/figures/pipeline_test/query/ \
+                    --fig_dir /data/leslie/suny4/figures/pipeline_test/
     # time python pipeline.py --input_dir /data/leslie/suny4/processed_input/ \
     #                 --pred_dir /data/leslie/suny4/predictions/chromafold/ \
     #                 --paired --ct darko_wt_cb darko_ctcfhet_cb \
