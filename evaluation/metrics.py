@@ -183,7 +183,7 @@ def merge_coords(coords, sizes, close=5):
 def get_tad_coords(pred1, pred2, min_dim=10, max_dim=100, num_dim=10, close=5):
 
     def generate_sizes(min_dim, max_dim, num_dim):
-        min_dim, maxdim = max(1, min_dim), min(100, max_dim)
+        min_dim, max_dim = max(1, min_dim), min(100, max_dim)
         return np.linspace(min_dim, max_dim, num=num_dim, dtype=int)
     
     sizes = generate_sizes(min_dim, max_dim, num_dim)
@@ -309,7 +309,6 @@ def match_tad_score(ranked, start):
             return this_diff_dir, this_abs_score
     
     return this_diff_dir, this_abs_score
-
 
 
 if __name__=='__main__':

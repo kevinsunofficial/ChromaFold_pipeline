@@ -156,10 +156,6 @@ def pairwise_difference_tads(args):
     keep_dir = args.keep_dir
 
     kernel = args.kernel
-    bin_size = args.bin_size
-    pattern = args.pattern
-    thresh_cutoff = args.thresh_cutoff
-    thresh_margin = args.thresh_margin
     db_file = args.db_file
     gtf_file = args.gtf_file
     table = args.table
@@ -182,20 +178,13 @@ def pairwise_difference_tads(args):
 
     print('Calculating TADs Similarity...')
     coords = get_tad_coords(pred1, pred2, min_dim=min_dim, max_dim=max_dim, num_dim=num_dim, close=close)
-    ranked, raw_simscore = rank_coords_simscore(pred1, pred2, coords, keep_dir=keep_dir)
-    simscore = interpolate(raw_simscore, bin_size=bin_size, pattern=pattern)
-
-    print('Selecting significant regions...')
-    regions = threshold(simscore, cutoff=thresh_cutoff, kernel=kernel, margin=thresh_margin)
-    queries = generate_query(regions, chrom=chrom, table=table, featuretype=featuretype)
+    ranked, _ = rank_coords_simscore(pred1, pred2, coords, keep_dir=keep_dir)
 
     print('Querying database...')
     db = load_database(db_file, gtf_file)
-    res, numvalid = db_query(db, queries, filters=filters)
+    res, numvalid = db_query_tad(db, ranked, chrom=chrom, table=table, featuretype=featuretype, filters=filters)
 
     if numvalid:
-        print('Sorting query result by significance')
-        res = sort_significance(args, res, numvalid, pred1, pred2, kernel, ranked)
         if not osp.exists(out_dir):
             os.makedirs(out_dir)
         res.to_csv(osp.join(out_dir, f'chr{chrom}_significant_genes_{kernel}.csv'), header=True, index=False)
@@ -230,6 +219,7 @@ if __name__=='__main__':
     parser.add_argument('--max_dim', required=False, type=int, default=100, help='Maximum window size for running Region TopDom, default=100')
     parser.add_argument('--num_dim', required=False, type=int, default=25, help='Number of window size for running Region TopDom, default=25')
     parser.add_argument('--close', required=False, type=int, default=5, help='Margin of error allowed for merging coordinates, default=5')
+    parser.add_argument('--keep_dir', required=False, action='store_true', default=False, help='Indicate whether to preserve the direction for interpolating score')
 
     parser.add_argument('--kernel', required=False, type=str, default='diff', help='Kernel used when evaluating the similarity of two TopDom lists, default=diff')
     parser.add_argument('--similar_window', required=False, type=int, default=10, help='Window size for running sliding window Pearson Correlation, default=10')
@@ -254,11 +244,15 @@ if __name__=='__main__':
 
     paired = args.paired
     chrom = args.chrom
+    kernel = args.kernel
 
     print('Processing chr{}'.format(chrom))
 
     if paired:
-        res = pairwise_difference(args)
+        if kernel == 'tad_diff':
+            res = pairwise_difference_tads(args)
+        else:
+            res = pairwise_difference(args)
     else:
         res = pipe_single(args)
     

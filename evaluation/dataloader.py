@@ -135,6 +135,20 @@ def parse_query(line):
     return query
 
 
+def parse_query_tad(line):
+    _, _, _, _, _, left, right, chrom, table, featuretype = line
+    select_from = f'SELECT * FROM {table} WHERE'
+    start_req = f'start >= {left} AND start <= {right}'
+    end_req = f'end >= {left} AND end <= {right}'
+    len_req = 'end - start >= 1000'
+    chrom_req = f'seqid = \"chr{chrom}\"'
+    feature_req = f'featuretype = \"{featuretype}\"'
+    where_reqs = ' AND '.join([start_req, end_req, len_req, chrom_req, feature_req])
+    query = ' '.join([select_from, where_reqs])
+    
+    return query
+
+
 def generate_query(regions, chrom, table='features', featuretype='gene'):
     regions['chrom'] = chrom
     regions['table'] = table
@@ -142,6 +156,17 @@ def generate_query(regions, chrom, table='features', featuretype='gene'):
     reqs = regions.apply(parse_query, 1)
 
     return reqs
+
+
+def generate_query_tad(ranked, chrom, table='features', featuretype='gene'):
+    ranked['left'] = (ranked.x_coord - 10) * int(1e4)
+    ranked['right'] = (ranked.y_coord + 10) * int(1e4)
+    ranked['chrom'] = chrom
+    ranked['table'] = table
+    ranked['featuretype'] = featuretype
+    ranked['reqs'] = ranked.apply(parse_query_tad, 1)
+
+    return ranked
 
 
 def merge_attr(attrs):
@@ -196,6 +221,52 @@ def db_query(db, queries, filters=[]):
         )
 
     return res, valid
+
+
+def db_query_tad(db, ranked, chrom, table='features', featuretype='gene', filters=[]):
+    ranked = generate_query_tad(ranked, chrom=chrom, table=table, featuretype=featuretype)
+    select = [
+        'chrom', 'start', 'end', 'gene_name', 'gene_id',
+        'gene_type', 'level', 'diff_direction', 'abs_diff_score'
+    ]
+    all_df = []
+    for i in tqdm(range(ranked.shape[0]), desc='querying database', position=0, leave=True):
+        _, _, _, diff_dir, abs_score, _, _, chrom, table, featuretype, query = ranked.iloc[i]
+        chrom, start, end, attrs = [], [], [], []
+        valid = 0
+        itr = db.execute(query).fetchall()
+        for obj in itr:
+            attr = json.loads(obj['attributes'])
+            if filters:
+                if not check_attr(attr, filters): continue
+            chrom.append(obj['seqid'])
+            start.append(obj['start'])
+            end.append(obj['end'])
+            attrs.append(attr)
+            valid += 1
+        if valid:
+            info = pd.DataFrame({
+                'chrom': chrom, 'start': start, 'end': end
+            })
+            attrs = pd.DataFrame(merge_attr(attrs))
+            res = pd.concat([info, attrs], axis=1)
+            res['diff_direction'] = diff_dir
+            res['abs_diff_score'] = abs_score
+            res = res[select]
+            all_df.append(res)
+    if all_df:
+        res = pd.concat(all_df, axis=0)
+        res = res.drop_duplicates(subset='gene_id', keep='first', ignore_index=True)
+        valid = res.shape[0]
+        print(f'databse query completed with {valid} match(es)')
+    else:
+        res, valid = None, 0
+        warnings.warn(
+            'No match found. Please consider expanding your search by changing the filters',
+            RuntimeWarning
+        )
+    
+    return res, valid        
 
 
 def parse_res(row):
