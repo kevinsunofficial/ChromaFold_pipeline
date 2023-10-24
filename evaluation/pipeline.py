@@ -153,7 +153,6 @@ def pairwise_difference_tads(args):
     max_dim = args.max_dim
     num_dim = args.num_dim
     close = args.close
-    keep_dir = args.keep_dir
 
     kernel = args.kernel
     db_file = args.db_file
@@ -178,7 +177,7 @@ def pairwise_difference_tads(args):
 
     print('Calculating TADs Similarity...')
     coords = get_tad_coords(pred1, pred2, min_dim=min_dim, max_dim=max_dim, num_dim=num_dim, close=close)
-    ranked, _ = rank_coords_simscore(pred1, pred2, coords, keep_dir=keep_dir)
+    ranked = rank_coords(pred1, pred2, coords)
 
     print('Querying database...')
     db = load_database(db_file, gtf_file)
@@ -219,7 +218,6 @@ if __name__=='__main__':
     parser.add_argument('--max_dim', required=False, type=int, default=100, help='Maximum window size for running Region TopDom, default=100')
     parser.add_argument('--num_dim', required=False, type=int, default=25, help='Number of window size for running Region TopDom, default=25')
     parser.add_argument('--close', required=False, type=int, default=5, help='Margin of error allowed for merging coordinates, default=5')
-    parser.add_argument('--keep_dir', required=False, action='store_true', default=False, help='Indicate whether to preserve the direction for interpolating score')
 
     parser.add_argument('--kernel', required=False, type=str, default='diff', help='Kernel used when evaluating the similarity of two TopDom lists, default=diff')
     parser.add_argument('--similar_window', required=False, type=int, default=10, help='Window size for running sliding window Pearson Correlation, default=10')

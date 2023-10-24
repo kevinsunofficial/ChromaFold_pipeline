@@ -195,7 +195,7 @@ def get_tad_coords(pred1, pred2, min_dim=10, max_dim=100, num_dim=10, close=5):
     return coords
 
 
-def rank_coords_simscore(pred1, pred2, coords, keep_dir=False):
+def rank_coords(pred1, pred2, coords):
     xs, ys, ss, diff_dirs, abs_scores = [], [], [], [], []
     for i in range(coords.shape[1]):
         x, y, s = coords[:, i]
@@ -214,24 +214,7 @@ def rank_coords_simscore(pred1, pred2, coords, keep_dir=False):
     })
     ranked = df.sort_values(by=['abs_diff_score'], ignore_index=True, ascending=False)
 
-    if keep_dir:
-        simscore = np.zeros((2, pred1.shape[0]))
-        for i in range(ranked.shape[0]):
-            x, y, _, diff_dir, abs_score = ranked.iloc[i]
-            x, y = int(x), int(y)
-            for j in range(x, y+1):
-                if not simscore[0, j]:
-                    simscore[:, j] = [abs_score, diff_dir]
-    else:
-        simscore = np.zeros(pred1.shape[0])
-        for i in range(ranked.shape[0]):
-            x, y, _, _, abs_score = ranked.iloc[i]
-            x, y = int(x), int(y)
-            simscore[x: y+1] = np.maximum(
-                simscore[x: y+1], np.full(y+1-x, abs_score),
-                out=simscore[x: y+1])
-
-    return ranked, simscore
+    return ranked
 
 
 def threshold(score, cutoff=0.7, kernel='diff', margin=1000):
