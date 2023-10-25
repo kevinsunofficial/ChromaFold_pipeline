@@ -57,8 +57,11 @@ def sort_significance(args, res, valid, pred1, pred2, kernel, ranked=None):
 
 
 def plot_gene(args, data, rank, start, locstart, locend, gene):
-    fig_dir = args.fig_dir
+    fig_dir = osp.join(args.out_dir, 'figure')
     ct1, ct2 = args.ct[:2]
+
+    if not osp.exists(fig_dir):
+        os.makedirs(fig_dir)
 
     ctcf, atac1, atac2, scatac_pre1, scatac_pre2, metacell1, metacell2, pred1, pred2 = data
     ctcf = ctcf[start*200: (start+700)*200]
@@ -99,6 +102,9 @@ def pairwise_difference(args):
     numplot = args.num_plot
     out_dir = args.out_dir
 
+    if not osp.exists(out_dir):
+        os.makedirs(out_dir)
+
     print('Loading multiome data...')
     ctcf, atac1, scatac1, metacell1 = load_multiome(input_dir, ct1, chrom, start=None)
     _, atac2, scatac2, metacell2 = load_multiome(input_dir, ct2, chrom, start=None)
@@ -130,7 +136,10 @@ def pairwise_difference(args):
     if numvalid:
         print('Sorting query result by significance')
         res = sort_significance(args, res, numvalid, pred1, pred2, kernel)
-        res.to_csv(osp.join(out_dir, f'chr{chrom}_significant_genes_{kernel}.csv'), header=True, index=False)
+        query_dir = osp.join(out_dir, 'query')
+        if not osp.exists(query_dir):
+            os.makedirs(query_dir)
+        res.to_csv(osp.join(query_dir, f'chr{chrom}_significant_genes_{kernel}.csv'), header=True, index=False)
         print('Plotting result...')
         if numplot is not None and numplot > 0:
             for i in tqdm(range(numplot), desc='plotting result', position=0, leave=True):
@@ -163,6 +172,9 @@ def pairwise_difference_tads(args):
     numplot = args.num_plot
     out_dir = args.out_dir
 
+    if not osp.exists(out_dir):
+        os.makedirs(out_dir)
+
     print('Loading multiome data...')
     ctcf, atac1, scatac1, metacell1 = load_multiome(input_dir, ct1, chrom, start=None)
     _, atac2, scatac2, metacell2 = load_multiome(input_dir, ct2, chrom, start=None)
@@ -184,9 +196,10 @@ def pairwise_difference_tads(args):
     res, numvalid = db_query_tad(db, ranked, chrom=chrom, table=table, featuretype=featuretype, filters=filters)
 
     if numvalid:
-        if not osp.exists(out_dir):
-            os.makedirs(out_dir)
-        res.to_csv(osp.join(out_dir, f'chr{chrom}_significant_genes_{kernel}.csv'), header=True, index=False)
+        query_dir = osp.join(out_dir, 'query')
+        if not osp.exists(query_dir):
+            os.makedirs(query_dir)
+        res.to_csv(osp.join(query_dir, f'chr{chrom}_significant_genes_{kernel}.csv'), header=True, index=False)
         print('Plotting result...')
         if numplot is not None and numplot > 0:
             for i in tqdm(range(numplot), desc='plotting result', position=0, leave=True):
@@ -235,8 +248,7 @@ if __name__=='__main__':
     parser.add_argument('--filters', required=False, nargs='+', default=[], help='Attribute filters in database query, input each filter with \"key=value\" format')
 
     parser.add_argument('--num_plot', required=False, type=int, default=0, help='Number of plots to generate, from top significance, default=0')
-    parser.add_argument('--out_dir', required=True, type=str, help='Output directory to store the db query result')
-    parser.add_argument('--fig_dir', required=True, type=str, help='Figure directory to put the generated figures')
+    parser.add_argument('--out_dir', required=True, type=str, help='Output directory to store the pipeline result')
 
     args = parser.parse_args()
 
