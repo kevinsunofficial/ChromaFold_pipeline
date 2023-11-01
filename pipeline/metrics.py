@@ -180,16 +180,20 @@ def merge_coords(coords, sizes, close=5):
     return merged.values.T
 
 
-def get_tad_coords(pred1, pred2, min_dim=10, max_dim=100, num_dim=10, close=5):
+def get_tad_coords(pred1, pred2=None, min_dim=10, max_dim=100, num_dim=10, close=5):
 
     def generate_sizes(min_dim, max_dim, num_dim):
         min_dim, max_dim = max(1, min_dim), min(100, max_dim)
         return np.linspace(min_dim, max_dim, num=num_dim, dtype=int)
     
     sizes = generate_sizes(min_dim, max_dim, num_dim)
-    tads1, tads2 = get_tads(pred1, sizes), get_tads(pred2, sizes)
-    alltads = np.concatenate((tads1, tads2), axis=1)
-    allcoords = tads_to_coords(alltads, sizes)
+    tads1 = get_tads(pred1, sizes)
+    if pred2 is not None:
+        tads2 = get_tads(pred2, sizes)
+        alltads = np.concatenate((tads1, tads2), axis=1)
+        allcoords = tads_to_coords(alltads, sizes)
+    else:
+        allcoords = tads_to_coords(tads1, sizes)
     coords = merge_coords(allcoords, sizes, close)
 
     return coords
@@ -238,13 +242,20 @@ def threshold(score, cutoff=0.7, kernel='diff', margin=1000):
                 starts.append(s)
                 ends.append(e)
                 s, e = i, i
-    if e != ends[-1]:
-        starts.append(s)
-        ends.append(e)
-    regions = pd.DataFrame({
-        'start': np.array(starts) - margin,
-        'end': np.array(ends) + margin
-    })
+    if not ends:
+        if s and e:
+            starts.append(s)
+            ends.append(e)
+    else:
+        if e != ends[-1]:
+            starts.append(s)
+            ends.append(e)
+    regions = None
+    if starts and ends:
+        regions = pd.DataFrame({
+            'start': np.array(starts) - margin,
+            'end': np.array(ends) + margin
+        })
     return regions
 
 
@@ -257,7 +268,25 @@ def gaussian(n, sigma):
     return kernel
 
 
-def verification(pred1, pred2, start, window_size, cutoff=0):
+def verification(pred, start, window_size, cutoff=0):
+    if pred.shape[0]-pred.shape[1]:
+        raise ValueError(
+            'Dimension mismatch ({}, {})'.format(pred.shape[0], pred.shape[1])
+        )
+    mat = pred[start:start+700, start:start+700]
+    score = []
+    for i in range(300, 500):
+        val = np.nanmean(mat[i-window_size:i, i:i+window_size])
+        if cutoff is not None:
+            val = cutoff if val < cutoff else val
+        score.append(val)
+    normal = gaussian(len(score), window_size)
+    normalscore = np.array(score).dot(normal)
+
+    return normalscore
+
+
+def verification_paired(pred1, pred2, start, window_size, cutoff=0):
     if pred1.shape[0]-pred1.shape[1]:
         raise ValueError(
             'Dimension mismatch ({}, {})'.format(pred1.shape[0], pred1.shape[1])

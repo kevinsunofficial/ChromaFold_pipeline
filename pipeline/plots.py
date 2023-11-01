@@ -15,25 +15,104 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
+def rotate_coord(n):
+    tmp = np.array(list(itertools.product(range(n,-1,-1),range(0,n+1,1))))
+    tmp[:, [0, 1]] = tmp[:, [1, 0]]
+    A = tmp.dot(np.array([[1, 0.5], [-1, 0.5]]))
+    
+    return A
+
+
 def plot_ctcf(ctcf, chrom, start, gene, locstart, locend, fig_dir):
-    fig, ax = plt.subplots(figsize=(8,2))
+    fig, ax = plt.subplots(figsize=(8, 2))
     ax.plot(ctcf)
     plt.xlim(300*200, 500*200)
     plt.ylim(2.5, 3.5)
     tickloc = ax.get_xticks()
     ticklabel = np.linspace(start+300, start+500, num=len(tickloc), dtype=int).tolist()
     plt.xticks(tickloc, ticklabel)
-    plt.title('chr{} - {}'.format(chrom, gene), fontsize=12)
+    plt.title('chr{} - {}'.format(chrom, gene), fontsize=15)
     plt.xlabel('chr{} (10kb)'.format(chrom))
-    plt.ylabel('CTCF motif score')    
+    plt.ylabel('CTCF motif score')
     plt.axvspan(locstart*200, locend*200, alpha=0.3, color='red')
     plt.savefig(osp.join(fig_dir, 'chr{}_{}_ctcf.png'.format(chrom, gene)))
     plt.clf()
 
     return
+    
+
+def plot_atac(atac, ct, chrom, start, gene, locstart, locend, fig_dir):
+    fig, ax = plt.subplots(figsize=(8, 2))
+    ax.plot(atac)
+    plt.xlim(300*200, 500*200)
+    tickloc = ax.get_xticks()
+    ticklabel = np.linspace(start+300, start+500, num=len(tickloc), dtype=int).tolist()
+    plt.xticks(tickloc, ticklabel)
+    plt.title('chr{} - {} ({})'.format(chrom, gene, ct), fontsize=15)
+    plt.xlabel('chr{} (10kb)'.format(chrom))
+    plt.ylabel('ATAC-seq signal')
+    plt.axvspan(locstart*200, locend*200, alpha=0.3, color='red')
+    plt.savefig(osp.join(fig_dir, 'chr{}_{}_atac.png'.format(chrom, gene)))
+    plt.clf()
+
+    return
+
+    
+def plot_scatac(scatac, ct, chrom, start, gene, locstart, locend, fig_dir):
+    fig, ax = plt.subplots(figsize=(8, 3))
+    vmax, vmin = 0.5, 0
+    n = scatac.shape[0]
+    A = rotate_coord(n)
+    img = ax.pcolormesh(A[:, 1].reshape(n+1, n+1), A[:, 0].reshape(n+1, n+1), 
+                        np.flipud(scatac), cmap='RdBu_r', vmax=vmax, vmin=vmin)
+    fig.colorbar(img)
+    ax.set_xlim(300, 500)
+    ax.set_ylim(0, 200)
+
+    x = np.arange(300, 500)
+    y1, y2 = np.absolute(2*x-2*locstart), np.absolute(2*x-2*locend)
+    ax.plot(x, y1, color='magenta', alpha=0.3)
+    ax.plot(x, y2, color='magenta', alpha=0.3)
+    
+    tickloc = ax.get_xticks()
+    ticklabel = np.linspace(start+300, start+500, num=len(tickloc),dtype=int).tolist()
+    plt.xticks(tickloc, ticklabel)
+    plt.title('chr{} - {} ({})'.format(chrom, gene, ct), fontsize=15)
+    plt.ylabel('Co-accessibility')
+    plt.savefig(osp.join(fig_dir, 'chr{}_{}_scatac.png'.format(chrom, gene)))
+    plt.clf()
+
+    return
+    
+
+def plot_pred(pred, ct, chrom, start, gene, locstart, locend, fig_dir):
+    fig, ax = plt.subplots(figsize=(8,3))
+    vmax, vmin = 4, -1
+    n = pred.shape[0]
+    A = rotate_coord(n)
+    img = ax.pcolormesh(A[:, 1].reshape(n+1, n+1), A[:, 0].reshape(n+1, n+1), 
+                        np.flipud(pred), cmap='RdBu_r', vmax=vmax, vmin=vmin)
+    fig.colorbar(img)
+    ax.set_xlim(300, 500)
+    ax.set_ylim(0, 200)
+
+    x = np.arange(300, 500)
+    y1, y2 = np.absolute(2*x-2*locstart), np.absolute(2*x-2*locend)
+    ax.plot(x, y1, color='magenta', alpha=0.3)
+    ax.plot(x, y2, color='magenta', alpha=0.3)
+    
+    tickloc = ax.get_xticks()
+    ticklabel = np.linspace(start+300, start+500, num=len(tickloc),dtype=int).tolist()
+    plt.xticks(tickloc, ticklabel)
+    plt.title('chr{} - {} ({})'.format(chrom, gene, ct), fontsize=12)
+    plt.ylabel('Prediction Z-score')
+    plt.savefig(osp.join(fig_dir, 'chr{}_{}_pred.png'.format(chrom, gene)))
+    plt.clf()
+
+    return
 
 
-def plot_atac(atac1, atac2, ct1, ct2, chrom, start, gene, locstart, locend, fig_dir):
+def plot_atac_paired(atac1, atac2, ct1, ct2, chrom, start, gene, locstart, locend, fig_dir):
     plt.rcParams['figure.figsize'] = 8, 5
     plt.rcParams['figure.autolayout'] = False
     
@@ -59,15 +138,7 @@ def plot_atac(atac1, atac2, ct1, ct2, chrom, start, gene, locstart, locend, fig_
     return
 
 
-def rotate_coord(n):
-    tmp = np.array(list(itertools.product(range(n,-1,-1),range(0,n+1,1))))
-    tmp[:, [0, 1]] = tmp[:, [1, 0]]
-    A = tmp.dot(np.array([[1, 0.5], [-1, 0.5]]))
-    
-    return A
-
-
-def plot_scatac(scatac1, scatac2, ct1, ct2, chrom, start, gene, locstart, locend, fig_dir):
+def plot_scatac_paired(scatac1, scatac2, ct1, ct2, chrom, start, gene, locstart, locend, fig_dir):
     plt.rcParams['figure.figsize'] = 8, 6.5
     plt.rcParams['figure.autolayout'] = False
 
@@ -103,7 +174,7 @@ def plot_scatac(scatac1, scatac2, ct1, ct2, chrom, start, gene, locstart, locend
     return
 
 
-def plot_pred(predmat1, predmat2, ct1, ct2, chrom, start, gene, locstart, locend, fig_dir):
+def plot_pred_paired(predmat1, predmat2, ct1, ct2, chrom, start, gene, locstart, locend, fig_dir):
     plt.rcParams['figure.figsize'] = 8, 9.5
     plt.rcParams['figure.autolayout'] = False
 

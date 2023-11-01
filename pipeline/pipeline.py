@@ -18,31 +18,35 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def pipe_single(args):
-    pred_dir = args.pred_dir
-    ct = args.ct[0]
-    chrom = args.chrom
-    pred_len = args.pred_len
-    avg_stripe = args.avg_stripe
-    topdom_window_size = args.topdom_w
-    topdom_cutoff = args.topdom_cutoff
+def sort_significance(args, res, valid, pred, kernel, ranked=None):
+    scores = []
+    for i in range(valid):
+        start, *_ = parse_res(res.iloc[i])
+        if kernel == 'tad_diff':
+            pass
+        else:
+            topdom_window_size = args.topdom_window
+            topdom_cutoff = args.topdom_cutoff
+            score = verification(
+                pred, start, window_size=topdom_window_size, cutoff=topdom_cutoff)
+            scores.append(score)
+    
+    res['significance'] = score
+    res.sort_values(by=['significance'], ignore_index=True, ascending=False)
 
-    pred_mat = load_pred(pred_dir, ct, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
-    signal = topdom(pred_mat, window_size=topdom_window_size, cutoff=topdom_cutoff)
-
-    return signal
+    return res
 
 
-def sort_significance(args, res, valid, pred1, pred2, kernel, ranked=None):
+def sort_significance_paired(args, res, valid, pred1, pred2, kernel, ranked=None):
     scores, directions = [], []
     for i in range(valid):
-        start, _, _, _ = parse_res(res.iloc[i])
+        start, *_ = parse_res(res.iloc[i])
         if kernel == 'tad_diff':
             direction, score = match_tad_score(ranked, start)
         else:
             topdom_window_size = args.topdom_window
             topdom_cutoff = args.topdom_cutoff
-            score = verification(
+            score = verification_paired(
                 pred1, pred2, start, 
                 window_size=topdom_window_size, cutoff=topdom_cutoff)
             direction = 0
@@ -57,6 +61,28 @@ def sort_significance(args, res, valid, pred1, pred2, kernel, ranked=None):
 
 
 def plot_gene(args, data, rank, start, locstart, locend, gene):
+    fig_dir = osp.join(args.out_dir, 'figure')
+    ct = args.ct[0]
+
+    if not osp.exists(fig_dir):
+        os.makedirs(fig_dir)
+
+    ctcf, atac, scatac_pre, metacell, pred = data
+    ctcf = ctcf[start*200: (start+700)*200]
+    atac = atac[start*200: (start+700)*200]
+    scatac = process_scatac(scatac_pre, metacell, start)
+
+    savefig_dir = osp.join(fig_dir, f'chr{chrom}', f'{rank}_chr{chrom}_{gene}')
+    if not osp.exists(savefig_dir):
+        os.makedirs(savefig_dir)
+
+    plot_ctcf(ctcf, chrom, start, gene, locstart, locend, savefig_dir)
+    plot_atac(atac, ct, chrom, start, gene, locstart, locend, savefig_dir)
+    plot_scatac(scatac, ct, chrom, start, gene, locstart, locend, savefig_dir)
+    plot_pred(pred, ct, chrom, start, gene, locstart, locend, savefig_dir)
+
+
+def plot_gene_paired(args, data, rank, start, locstart, locend, gene):
     fig_dir = osp.join(args.out_dir, 'figure')
     ct1, ct2 = args.ct[:2]
 
@@ -74,12 +100,89 @@ def plot_gene(args, data, rank, start, locstart, locend, gene):
         os.makedirs(savefig_dir)
 
     plot_ctcf(ctcf, chrom, start, gene, locstart, locend, savefig_dir)
-    plot_atac(atac1, atac2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
-    plot_scatac(scatac1, scatac2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
-    plot_pred(pred1, pred2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
+    plot_atac_paired(atac1, atac2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
+    plot_scatac_paired(scatac1, scatac2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
+    plot_pred_paired(pred1, pred2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
+
+
+def pipe_single(args):
+    """
+        TODO: add bedpe files generation and gene track plotting
+    """
+    input_dir = args.input_dir
+    pred_dir = args.pred_dir
+    ct = args.ct[0]
+    chrom = args.chrom
+    pred_len = args.pred_len
+    avg_stripe = args.avg_stripe
+    topdom_window_size = args.topdom_window
+    topdom_cutoff = args.topdom_cutoff
+    bin_size = args.bin_size
+    pattern = args.pattern
+    thresh_cutoff = args.thresh_cutoff
+    thresh_margin = args.thresh_margin
+    db_file = args.db_file
+    gtf_file = args.gtf_file
+    table = args.table
+    featuretype = args.featuretype
+    filters = args.filters
+    numplot = args.num_plot
+    out_dir = args.out_dir
+
+    if not osp.exists(out_dir):
+        os.makedirs(out_dir)
+
+    print('Loading multiome data...')
+    ctcf, atac, scatac, metacell = load_multiome(input_dir, ct, chrom, start=None)
+
+    print('Loading predictions...')
+    pred = load_pred(pred_dir, ct, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
+    data = [ctcf, atac, scatac, metacell, pred]
+
+    print('Calculating TopDom insulation score...')
+    signal = topdom(pred, window_size=topdom_window_size, cutoff=topdom_cutoff)
+    score = interpolate(signal, bin_size=bin_size, pattern=pattern)
+
+    print('Selecting significant regions...')
+    regions = threshold(score, cutoff=thresh_cutoff, kernel='diff', margin=thresh_margin)
+    assert regions is not None, f'No regions selected for chromosome {chrom}, end early.'
+    queries = generate_query(regions, chrom=chrom, table=table, featuretype=featuretype)
+
+    print('Querying database...')
+    db = load_database(db_file, gtf_file)
+    res, numvalid = db_query(db, queries, filters=filters)
+
+    if numvalid:
+        print('Sorting query result by significance')
+        res = sort_significance(args, res, numvalid, pred, kernel)
+        query_dir = osp.join(out_dir, 'query')
+        if not osp.exists(query_dir):
+            os.makedirs(query_dir)
+        res.to_csv(osp.join(query_dir, f'chr{chrom}_significant_genes_{kernel}.csv'), header=True, index=False)
+        print('Plotting result...')
+        if numplot is not None and numplot > 0:
+            for i in tqdm(range(numplot), desc='plotting result', position=0, leave=True):
+                row = res.iloc[i]
+                start, locstart, locend, gene = parse_res(row)
+                plot_gene(args, data, i+1, start, locstart, locend, gene)
+
+    return res
+
+
+def pipe_single_tads(args):
+    """
+        TODO:
+            1. make tad_diff compatible with pipe_single here
+            2. add bedpe files generation and gene track plotting
+    """
+
+    raise NotImplementedError
 
 
 def pairwise_difference(args):
+    """
+        TODO: add bedpe files generation and gene track plotting
+    """
     input_dir = args.input_dir
     pred_dir = args.pred_dir
     ct1, ct2 = args.ct[:2]
@@ -127,6 +230,7 @@ def pairwise_difference(args):
 
     print('Selecting significant regions...')
     regions = threshold(simscore, cutoff=thresh_cutoff, kernel=kernel, margin=thresh_margin)
+    assert regions is not None, f'No regions selected for chromosome {chrom}, end early.'
     queries = generate_query(regions, chrom=chrom, table=table, featuretype=featuretype)
 
     print('Querying database...')
@@ -145,12 +249,15 @@ def pairwise_difference(args):
             for i in tqdm(range(numplot), desc='plotting result', position=0, leave=True):
                 row = res.iloc[i]
                 start, locstart, locend, gene = parse_res(row)
-                plot_gene(args, data, i+1, start, locstart, locend, gene)
+                plot_gene_paired(args, data, i+1, start, locstart, locend, gene)
 
     return res
 
 
 def pairwise_difference_tads(args):
+    """
+        TODO: add bedpe files generation and gene track plotting
+    """
     input_dir = args.input_dir
     pred_dir = args.pred_dir
     ct1, ct2 = args.ct[:2]
@@ -213,7 +320,6 @@ def pairwise_difference_tads(args):
 if __name__=='__main__':
 
     print('\nParsing arguments...')
-    os.system('clear')
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_dir', required=True, type=str, help='ChromaFold multiome input directory')
