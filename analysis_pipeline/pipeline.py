@@ -166,6 +166,8 @@ def pipe_single(args):
                 row = res.iloc[i]
                 start, locstart, locend, gene = parse_res(row)
                 plot_gene(args, data, i+1, start, locstart, locend, gene)
+    else:
+        print('No valid query result')
 
     return res
 
@@ -173,8 +175,7 @@ def pipe_single(args):
 def pipe_single_tads(args):
     """
         TODO:
-            1. make tad_diff compatible with pipe_single here
-            2. add bedpe files generation and gene track plotting
+            1. add bedpe files generation and gene track plotting
     """
     input_dir = args.input_dir
     pred_dir = args.pred_dir
@@ -227,6 +228,8 @@ def pipe_single_tads(args):
                 row = res.iloc[i]
                 start, locstart, locend, gene = parse_res(row)
                 plot_gene(args, data, i+1, start, locstart, locend, gene)
+    else:
+        print('No valid query result')
 
     return res
 
@@ -291,7 +294,7 @@ def pairwise_difference(args):
 
     if numvalid:
         print('Sorting query result by significance')
-        res = sort_significance(args, res, numvalid, pred1, pred2, kernel)
+        res = sort_significance_paired(args, res, numvalid, pred1, pred2, kernel)
         query_dir = osp.join(out_dir, 'query')
         if not osp.exists(query_dir):
             os.makedirs(query_dir)
@@ -302,6 +305,8 @@ def pairwise_difference(args):
                 row = res.iloc[i]
                 start, locstart, locend, gene = parse_res(row)
                 plot_gene_paired(args, data, i+1, start, locstart, locend, gene)
+    else:
+        print('No valid query result')
 
     return res
 
@@ -366,6 +371,8 @@ def pairwise_difference_tads(args):
                 row = res.iloc[i]
                 start, locstart, locend, gene = parse_res(row)
                 plot_gene_paired(args, data, i+1, start, locstart, locend, gene)
+    else:
+        print('No valid query result')
 
     return res
 
@@ -423,8 +430,10 @@ if __name__=='__main__':
         else:
             res = pairwise_difference(args)
     else:
-        res = pipe_single(args)
+        if kernel == 'tad_diff':
+            res = pipe_single_tads(args)
+        else:
+            res = pipe_single(args)
     
-    print('DONE')
-    
+    print('Done')
 

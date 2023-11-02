@@ -48,7 +48,7 @@ def plot_atac(atac, ct, chrom, start, gene, locstart, locend, fig_dir):
     tickloc = ax.get_xticks()
     ticklabel = np.linspace(start+300, start+500, num=len(tickloc), dtype=int).tolist()
     plt.xticks(tickloc, ticklabel)
-    plt.title('chr{} - {} ({})'.format(chrom, gene, ct), fontsize=15)
+    plt.title('chr{} - {}'.format(chrom, gene), fontsize=15)
     plt.xlabel('chr{} (10kb)'.format(chrom))
     plt.ylabel('ATAC-seq signal')
     plt.axvspan(locstart*200, locend*200, alpha=0.3, color='red')
@@ -85,9 +85,10 @@ def plot_scatac(scatac, ct, chrom, start, gene, locstart, locend, fig_dir):
     return
     
 
-def plot_pred(pred, ct, chrom, start, gene, locstart, locend, fig_dir):
+def plot_pred(predmat, ct, chrom, start, gene, locstart, locend, fig_dir):
     fig, ax = plt.subplots(figsize=(8,3))
     vmax, vmin = 4, -1
+    pred = np.triu(predmat[start:start+700, start:start+700])
     n = pred.shape[0]
     A = rotate_coord(n)
     img = ax.pcolormesh(A[:, 1].reshape(n+1, n+1), A[:, 0].reshape(n+1, n+1), 
