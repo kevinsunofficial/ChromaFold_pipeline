@@ -159,8 +159,9 @@ def pipe_single(args):
         if not osp.exists(query_dir):
             os.makedirs(query_dir)
         res.to_csv(osp.join(query_dir, f'chr{chrom}_significant_genes_{kernel}.csv'), header=True, index=False)
-        print('Plotting result...')
+        
         if numplot is not None and numplot > 0:
+            print('Plotting result...')
             for i in tqdm(range(numplot), desc='plotting result', position=0, leave=True):
                 row = res.iloc[i]
                 start, locstart, locend, gene = parse_res(row)
@@ -175,8 +176,59 @@ def pipe_single_tads(args):
             1. make tad_diff compatible with pipe_single here
             2. add bedpe files generation and gene track plotting
     """
+    input_dir = args.input_dir
+    pred_dir = args.pred_dir
+    ct = args.ct[0]
+    chrom = args.chrom
+    pred_len = args.pred_len
+    avg_stripe = args.avg_stripe
 
-    raise NotImplementedError
+    min_dim = args.min_dim
+    max_dim = args.max_dim
+    num_dim = args.num_dim
+    close = args.close
+
+    kernel = args.kernel
+    db_file = args.db_file
+    gtf_file = args.gtf_file
+    table = args.table
+    featuretype = args.featuretype
+    filters = args.filters
+    numplot = args.num_plot
+    out_dir = args.out_dir
+
+    if not osp.exists(out_dir):
+        os.makedirs(out_dir)
+
+    print('Loading multiome data...')
+    ctcf, atac, scatac, metacell = load_multiome(input_dir, ct, chrom, start=None)
+
+    print('Loading predictions...')
+    pred = load_pred(pred_dir, ct, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
+    data = [ctcf, atac, scatac, metacell, pred]
+
+    print('Calculating TADs...')
+    coords = get_tad_coords(pred, min_dim=min_dim, max_dim=max_dim, num_dim=num_dim, close=close)
+    ranked = rank_coords(pred, coords)
+
+    print('Querying database...')
+    db = load_database(db_file, gtf_file)
+    res, numvalid = db_query_tad(db, ranked, chrom=chrom, table=table, featuretype=featuretype, filters=filters)
+
+    if numvalid:
+        query_dir = osp.join(out_dir, 'query')
+        if not osp.exists(query_dir):
+            os.makedirs(query_dir)
+        res.to_csv(osp.join(query_dir, f'chr{chrom}_significant_genes_{kernel}.csv'), header=True, index=False)
+        
+        if numplot is not None and numplot > 0:
+            print('Plotting result...')
+            for i in tqdm(range(numplot), desc='plotting result', position=0, leave=True):
+                row = res.iloc[i]
+                start, locstart, locend, gene = parse_res(row)
+                plot_gene(args, data, i+1, start, locstart, locend, gene)
+
+    return res
 
 
 def pairwise_difference(args):
@@ -295,8 +347,8 @@ def pairwise_difference_tads(args):
     data = [ctcf, atac1, atac2, scatac1, scatac2, metacell1, metacell2, pred1, pred2]
 
     print('Calculating TADs Similarity...')
-    coords = get_tad_coords(pred1, pred2, min_dim=min_dim, max_dim=max_dim, num_dim=num_dim, close=close)
-    ranked = rank_coords(pred1, pred2, coords)
+    coords = get_tad_coords(pred1, pred2=pred2, min_dim=min_dim, max_dim=max_dim, num_dim=num_dim, close=close)
+    ranked = rank_coords_paired(pred1, pred2, coords)
 
     print('Querying database...')
     db = load_database(db_file, gtf_file)
@@ -307,12 +359,13 @@ def pairwise_difference_tads(args):
         if not osp.exists(query_dir):
             os.makedirs(query_dir)
         res.to_csv(osp.join(query_dir, f'chr{chrom}_significant_genes_{kernel}.csv'), header=True, index=False)
-        print('Plotting result...')
+        
         if numplot is not None and numplot > 0:
+            print('Plotting result...')
             for i in tqdm(range(numplot), desc='plotting result', position=0, leave=True):
                 row = res.iloc[i]
                 start, locstart, locend, gene = parse_res(row)
-                plot_gene(args, data, i+1, start, locstart, locend, gene)
+                plot_gene_paired(args, data, i+1, start, locstart, locend, gene)
 
     return res
 

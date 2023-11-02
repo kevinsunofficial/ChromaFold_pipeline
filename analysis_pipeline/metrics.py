@@ -199,7 +199,28 @@ def get_tad_coords(pred1, pred2=None, min_dim=10, max_dim=100, num_dim=10, close
     return coords
 
 
-def rank_coords(pred1, pred2, coords):
+def rank_coords(pred, coords):
+    xs, ys, ss, diff_dirs, abs_scores = [], [], [], [], []
+    for i in range(coords.shape[1]):
+        x, y, s = coords[:, i]
+        area = pred[x:y+1, x:y+1]
+        diff_dir = np.mean(area)
+        abs_score = np.std(area) * np.ptp(area)
+        xs.append(x)
+        ys.append(y)
+        ss.append(s)
+        diff_dirs.append(diff_dir)
+        abs_scores.append(abs_score)
+    df = pd.DataFrame({
+        'x_coord': xs, 'y_coord': ys, 'window_size': ss,
+        'diff_direction': diff_dirs, 'abs_diff_score': abs_scores
+    })
+    ranked = df.sort_values(by=['abs_diff_score'], ignore_index=True, ascending=False)
+
+    return ranked
+
+
+def rank_coords_paired(pred1, pred2, coords):
     xs, ys, ss, diff_dirs, abs_scores = [], [], [], [], []
     for i in range(coords.shape[1]):
         x, y, s = coords[:, i]
