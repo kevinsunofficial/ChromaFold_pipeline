@@ -213,5 +213,23 @@ def plot_pred_paired(predmat1, predmat2, ct1, ct2, chrom, start, gene, locstart,
     return
 
 
+def write_bedpe(coords, chrom, ct, bedpe_dir):
+    bedpe = []
+
+    for s1, e1, s2, e2, score in coords:
+        line = '{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
+            chrom, int(s1 * 1e4), int(e1 * 1e4), 
+            chrom, int(s2 * 1e4), int(e2 * 1e4),
+            f'chr{chrom}_gene', score, '.', '.'
+        )
+        bedpe.append(line)
+    
+    bedpe_file = osp.join(bedpe_dir, f'{ct}_chr{chrom}.bedpe')
+    with open(bedpe_file, 'w') as file:
+        file.writelines(bedpe)
+    
+    return
+
+
 if __name__=='__main__':
     pass

@@ -60,6 +60,39 @@ def sort_significance_paired(args, res, valid, pred1, pred2, kernel, ranked=None
     return res
 
 
+def create_bedpe(args, pred):
+    bedpe_dir = osp.join(args.out_dir, 'bedpe')
+    chrom = args.chrom
+    ct = args.ct[0]
+    bedpe_thresh = args.bedpe_thresh
+    bedpe_margin = args.bedpe_margin
+
+    if not osp.exists(bedpe_dir):
+        os.makedirs(bedpe_dir)
+    
+    coords = parse_bedpe(pred, bedpe_thresh=bedpe_thresh, bedpe_margin=bedpe_margin)
+    write_bedpe(coords, chrom, ct, bedpe_dir)
+
+    return
+
+
+def create_bedpe_paired(args, pred1, pred2):
+    bedpe_dir = osp.join(args.out_dir, 'bedpe')
+    chrom = args.chrom
+    ct1, ct2 = args.ct[:2]
+    bedpe_thresh = args.bedpe_thresh
+    bedpe_margin = args.bedpe_margin
+
+    if not osp.exists(bedpe_dir):
+        os.makedirs(bedpe_dir)
+    
+    coords1, coords2 = parse_bedpe_paired(pred1, pred2, bedpe_thresh=bedpe_thresh, bedpe_margin=bedpe_margin)
+    write_bedpe(coords1, chrom, ct1, bedpe_dir)
+    write_bedpe(coords2, chrom, ct2, bedpe_dir)
+
+    return
+
+
 def plot_gene(args, data, rank, start, locstart, locend, gene):
     fig_dir = osp.join(args.out_dir, 'figure')
     ct = args.ct[0]
@@ -80,6 +113,8 @@ def plot_gene(args, data, rank, start, locstart, locend, gene):
     plot_atac(atac, ct, chrom, start, gene, locstart, locend, savefig_dir)
     plot_scatac(scatac, ct, chrom, start, gene, locstart, locend, savefig_dir)
     plot_pred(pred, ct, chrom, start, gene, locstart, locend, savefig_dir)
+
+    return
 
 
 def plot_gene_paired(args, data, rank, start, locstart, locend, gene):
@@ -104,6 +139,8 @@ def plot_gene_paired(args, data, rank, start, locstart, locend, gene):
     plot_scatac_paired(scatac1, scatac2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
     plot_pred_paired(pred1, pred2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
 
+    return
+
 
 def pipe_single(args):
     """
@@ -126,9 +163,10 @@ def pipe_single(args):
     table = args.table
     featuretype = args.featuretype
     filters = args.filters
+    
     numplot = args.num_plot
-    out_dir = args.out_dir
 
+    out_dir = args.out_dir
     if not osp.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -144,7 +182,7 @@ def pipe_single(args):
     score = interpolate(signal, bin_size=bin_size, pattern=pattern)
 
     print('Selecting significant regions...')
-    regions = threshold(score, cutoff=thresh_cutoff, kernel='diff', margin=thresh_margin)
+    regions = threshold(score, cutoff=thresh_cutoff, kernel='diff', thresh_margin=thresh_margin)
     assert regions is not None, f'No regions selected for chromosome {chrom}, end early.'
     queries = generate_query(regions, chrom=chrom, table=table, featuretype=featuretype)
 
@@ -152,8 +190,13 @@ def pipe_single(args):
     db = load_database(db_file, gtf_file)
     res, numvalid = db_query(db, queries, filters=filters)
 
+    print('Calculation and query is completed.\n\nGenerating results...')
+    
+    print('Writing BEDPE files...')
+    create_bedpe(args, pred)
+
     if numvalid:
-        print('Sorting query result by significance')
+        print('Sorting query result by significance...')
         res = sort_significance(args, res, numvalid, pred, kernel)
         query_dir = osp.join(out_dir, 'query')
         if not osp.exists(query_dir):
@@ -195,9 +238,10 @@ def pipe_single_tads(args):
     table = args.table
     featuretype = args.featuretype
     filters = args.filters
+    
     numplot = args.num_plot
-    out_dir = args.out_dir
 
+    out_dir = args.out_dir
     if not osp.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -215,6 +259,11 @@ def pipe_single_tads(args):
     print('Querying database...')
     db = load_database(db_file, gtf_file)
     res, numvalid = db_query_tad(db, ranked, chrom=chrom, table=table, featuretype=featuretype, filters=filters)
+
+    print('Calculation and query is completed.\n\nGenerating results...')
+    
+    print('Writing BEDPE files...')
+    create_bedpe(args, pred)
 
     if numvalid:
         query_dir = osp.join(out_dir, 'query')
@@ -257,9 +306,10 @@ def pairwise_difference(args):
     table = args.table
     featuretype = args.featuretype
     filters = args.filters
-    numplot = args.num_plot
-    out_dir = args.out_dir
 
+    numplot = args.num_plot
+
+    out_dir = args.out_dir
     if not osp.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -284,7 +334,7 @@ def pairwise_difference(args):
     simscore = interpolate(raw_simscore, bin_size=bin_size, pattern=pattern)
 
     print('Selecting significant regions...')
-    regions = threshold(simscore, cutoff=thresh_cutoff, kernel=kernel, margin=thresh_margin)
+    regions = threshold(simscore, cutoff=thresh_cutoff, kernel=kernel, thresh_margin=thresh_margin)
     assert regions is not None, f'No regions selected for chromosome {chrom}, end early.'
     queries = generate_query(regions, chrom=chrom, table=table, featuretype=featuretype)
 
@@ -292,8 +342,13 @@ def pairwise_difference(args):
     db = load_database(db_file, gtf_file)
     res, numvalid = db_query(db, queries, filters=filters)
 
+    print('Calculation and query is completed.\n\nGenerating results...')
+    
+    print('Writing BEDPE files...')
+    create_bedpe_paired(args, pred1, pred2)
+
     if numvalid:
-        print('Sorting query result by significance')
+        print('Sorting query result by significance...')
         res = sort_significance_paired(args, res, numvalid, pred1, pred2, kernel)
         query_dir = osp.join(out_dir, 'query')
         if not osp.exists(query_dir):
@@ -333,9 +388,10 @@ def pairwise_difference_tads(args):
     table = args.table
     featuretype = args.featuretype
     filters = args.filters
-    numplot = args.num_plot
-    out_dir = args.out_dir
 
+    numplot = args.num_plot
+
+    out_dir = args.out_dir
     if not osp.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -359,6 +415,11 @@ def pairwise_difference_tads(args):
     db = load_database(db_file, gtf_file)
     res, numvalid = db_query_tad(db, ranked, chrom=chrom, table=table, featuretype=featuretype, filters=filters)
 
+    print('Calculation and query is completed.\n\nGenerating results...')
+    
+    print('Writing BEDPE files...')
+    create_bedpe_paired(args, pred1, pred2)
+
     if numvalid:
         query_dir = osp.join(out_dir, 'query')
         if not osp.exists(query_dir):
@@ -377,6 +438,28 @@ def pairwise_difference_tads(args):
     return res
 
 
+def debug_bedpe_single(args):
+    print('DEBUGGING')
+
+    pred_dir = args.pred_dir
+    ct = args.ct[0]
+    chrom = args.chrom
+    pred_len = args.pred_len
+    avg_stripe = args.avg_stripe
+
+    out_dir = args.out_dir
+    if not osp.exists(out_dir):
+        os.makedirs(out_dir)
+
+    print('Loading predictions...')
+    pred = load_pred(pred_dir, ct, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
+
+    print('Writing BEDPE...')    
+    create_bedpe(args, pred)
+
+    return
+
+
 if __name__=='__main__':
 
     print('\nParsing arguments...')
@@ -386,7 +469,7 @@ if __name__=='__main__':
     parser.add_argument('--pred_dir', required=True, type=str, help='ChromaFold prediction result directory')
     parser.add_argument('--paired', required=False, action='store_true', default=False, help='Indicate whether the analysis is for paired prediction')
     parser.add_argument('--ct', required=True, nargs='+', default=[], help='Full cell type names, for paired this would be two cell types')
-    parser.add_argument('--chrom', required=True, type=int, help='Chromosome number')
+    parser.add_argument('--chrom', required=True, type=str, help='Chromosome number')
     parser.add_argument('--pred_len', required=False, type=int, default=200, help='Prediction length, default=200')
     parser.add_argument('--avg_stripe', required=False, action='store_true', help='Average V-stripe, default=False')
 
@@ -408,13 +491,17 @@ if __name__=='__main__':
     parser.add_argument('--thresh_margin', required=False, type=int, default=1000, help='Margin of error used when extending window with difference, default=1000')
 
     parser.add_argument('--db_file', required=True, type=str, help='Database file directory')
-    parser.add_argument('--gtf_file', required=False, type=str, default='gencode.vM10.basic.annotation.gtf',help='GTF file directory')
+    parser.add_argument('--gtf_file', required=True, type=str, default='gencode.vM10.basic.annotation.gtf',help='GTF file directory')
     parser.add_argument('--table', required=False, type=str, default='features', help='Table name for db query')
     parser.add_argument('--featuretype', required=False, type=str, default='gene', help='Feature types to select for db query')
     parser.add_argument('--filters', required=False, nargs='+', default=[], help='Attribute filters in database query, input each filter with \"key=value\" format')
 
     parser.add_argument('--num_plot', required=False, type=int, default=0, help='Number of plots to generate, from top significance, default=0')
+    parser.add_argument('--bedpe_thresh', required=False, type=float, default=99., help='Percentile or absolute threshold for bedpe generation, default=99')
+    parser.add_argument('--bedpe_margin', required=False, type=int, default=None, help='Margin of error used when extending bedpe, default=None')
     parser.add_argument('--out_dir', required=True, type=str, help='Output directory to store the pipeline result')
+
+    parser.add_argument('--debug', required=False, action='store_true', default=False, help='Toggling debugging mode for certain functionality')
 
     args = parser.parse_args()
 
@@ -423,6 +510,10 @@ if __name__=='__main__':
     kernel = args.kernel
 
     print('Processing chr{}'.format(chrom))
+
+    if args.debug:
+        debug_bedpe_single(args)
+        exit()
 
     if paired:
         if kernel == 'tad_diff':

@@ -32,7 +32,7 @@ if [[ "$sample" == "am_gfp_myc_thelp_nothelp_gcb" ]]
 then
     for (( i=$start; i<=$end; i++ ))
     do
-        if [[ $i == $end ]]
+        if [[ $i == $max ]]
         then
             i="X"
         fi
@@ -43,13 +43,14 @@ then
             --min_dim 25 --max_dim 75 --num_dim 10 --close 10 \
             --filters gene_type=protein_coding \
             --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
+            --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
             --num_plot 10 --out_dir /data/leslie/suny4/pipeline_result/am_gfp_myc_thelp_nothelp_gcb
     done
 elif [[ "$sample" == "darko_ctcfhet_wt_cb" ]]
 then
     for (( i=$start; i<=$end; i++ ))
     do
-        if [[ $i == $end ]]
+        if [[ $i == $max ]]
         then
             i="X"
         fi
@@ -60,13 +61,14 @@ then
             --min_dim 25 --max_dim 75 --num_dim 10 --close 10 \
             --filters gene_type=protein_coding \
             --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
+            --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
             --num_plot 10 --out_dir /data/leslie/suny4/pipeline_result/darko_ctcfhet_wt_cb
     done
 elif [[ "$sample" == "darko_arid1ahet_wt_cb" ]]
 then
     for (( i=$start; i<=$end; i++ ))
     do
-        if [[ $i == $end ]]
+        if [[ $i == $max ]]
         then
             i="X"
         fi
@@ -77,13 +79,14 @@ then
             --min_dim 25 --max_dim 75 --num_dim 10 --close 10 \
             --filters gene_type=protein_coding \
             --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
+            --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
             --num_plot 10 --out_dir /data/leslie/suny4/pipeline_result/darko_arid1ahet_wt_cb
     done
 elif [[ "$sample" == "darko_arid1ahet_ctcfhet_cb" ]]
 then
     for (( i=$start; i<=$end; i++ ))
     do
-        if [[ $i == $end ]]
+        if [[ $i == $max ]]
         then
             i="X"
         fi
@@ -94,13 +97,14 @@ then
             --min_dim 25 --max_dim 75 --num_dim 10 --close 10 \
             --filters gene_type=protein_coding \
             --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
+            --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
             --num_plot 10 --out_dir /data/leslie/suny4/pipeline_result/darko_arid1ahet_ctcfhet_cb
     done
 elif [[ "$sample" == "darko_wt_cb" ]]
 then
     for (( i=$start; i<=$end; i++ ))
     do
-        if [[ $i == $end ]]
+        if [[ $i == $max ]]
         then
             i="X"
         fi
@@ -111,13 +115,14 @@ then
             --min_dim 25 --max_dim 75 --num_dim 10 --close 10 \
             --filters gene_type=protein_coding \
             --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
+            --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
             --num_plot 10 --out_dir /data/leslie/suny4/pipeline_result/darko_wt_cb
     done
 elif [[ "$sample" == "darko_arid1ahet_cb" ]]
 then
     for (( i=$start; i<=$end; i++ ))
     do
-        if [[ $i == $end ]]
+        if [[ $i == $max ]]
         then
             i="X"
         fi
@@ -129,6 +134,7 @@ then
             --pattern smooth --thresh_cutoff 0.3 --thresh_margin 1000 \
             --filters gene_type=protein_coding \
             --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
+            --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
             --num_plot 10 --out_dir /data/leslie/suny4/pipeline_result/darko_arid1ahet_cb
     done
 else

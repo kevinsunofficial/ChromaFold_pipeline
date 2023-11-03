@@ -242,7 +242,7 @@ def rank_coords_paired(pred1, pred2, coords):
     return ranked
 
 
-def threshold(score, cutoff=0.7, kernel='diff', margin=1000):
+def threshold(score, cutoff=0.7, kernel='diff', thresh_margin=1000):
     if kernel == 'diff':
         indices = np.argwhere(np.abs(score) >= cutoff).flatten()
     elif kernel == 'pearson':
@@ -258,7 +258,7 @@ def threshold(score, cutoff=0.7, kernel='diff', margin=1000):
     for i in tqdm(indices, desc='selecting significant regions', position=0, leave=True):
         if not s and not e: s, e = i, i
         else:
-            if i - e <= margin: e = i
+            if i - e <= thresh_margin: e = i
             else:
                 starts.append(s)
                 ends.append(e)
@@ -274,8 +274,8 @@ def threshold(score, cutoff=0.7, kernel='diff', margin=1000):
     regions = None
     if starts and ends:
         regions = pd.DataFrame({
-            'start': np.array(starts) - margin,
-            'end': np.array(ends) + margin
+            'start': np.array(starts) - thresh_margin,
+            'end': np.array(ends) + thresh_margin
         })
     return regions
 
@@ -342,6 +342,80 @@ def match_tad_score(ranked, start):
             return this_diff_dir, this_abs_score
     
     return this_diff_dir, this_abs_score
+
+
+def merge_bedpe(coords, bedpe_margin):
+    s1, e1, s2, e2 = 0, 0, 0, 0
+    sumscore, count = 0, 0
+    rows = []
+
+    for c1, c2, score in coords:
+        if not count:
+            s1, e1, s2, e2 = c1, c1, c2, c2
+            sumscore, count = score, 1
+        else:
+            if not (s1 <= c1 <= e1+bedpe_margin and s2 <= c2 <= e2+bedpe_margin):
+                rows.append(np.array([s1, e1, s2, e2, sumscore]))
+                s1, e1, s2, e2 = c1, c1, c2, c2
+                sumscore, count = score, 1
+            else:
+                sumscore += 1
+                count += 1
+                e1, e2 = max(e1, c1), max(e2, c2)
+    if count:
+        rows.append(np.array([s1, e1, s2, e2, sumscore]))
+    
+    return np.concatenate(rows).reshape(-1, 5)
+
+
+def parse_bedpe(pred, bedpe_thresh=99., bedpe_margin=None):
+    if pred.shape[0]-pred.shape[1]:
+        raise ValueError(
+            'Dimension mismatch ({}, {})'.format(pred.shape[0], pred.shape[1])
+        )
+    min_len = len(np.diag(pred, 199))
+    all_zval = np.concatenate([np.diag(pred, i)[:min_len] for i in range(1, 200)])
+    bin_pred = all_zval.reshape(-1, min_len)
+    bin_mask = (bin_pred.sum(0) < np.percentile(bin_pred.sum(0), 1))
+    zval_cutoff = np.percentile(all_zval, bedpe_thresh) if bedpe_thresh >= 90 else bedpe_thresh
+
+    selected_pred = np.copy(bin_pred)
+    selected_pred[:, bin_mask] = 0
+    indices = np.argwhere(selected_pred > zval_cutoff)
+    scores = selected_pred[selected_pred > zval_cutoff]
+
+    coords = np.column_stack((indices[:, 1], np.array(indices[:, 1] + indices[:, 0] + 1), scores))
+    coords = coords[np.lexsort((coords[:, 2], coords[:, 1], coords[:, 0]))]
+    coords = coords[np.diff(coords)[:, 0] >= 50, :]
+    if bedpe_margin is not None:
+        coords = merge_bedpe(coords, bedpe_margin=bedpe_margin)
+    else:
+        coords = np.column_stack((coords[:, 0], coords[:, 0], coords[:, 1], coords[:, 1], coords[:, 2]))
+
+    return coords
+
+
+def parse_bedpe_paired(pred1, pred2, bedpe_thresh=99., bedpe_margin=None):
+    if pred1.shape[0]-pred1.shape[1]:
+        raise ValueError(
+            'Dimension mismatch ({}, {})'.format(pred1.shape[0], pred1.shape[1])
+        )
+    if pred1.shape[0]-pred2.shape[0]:
+        raise ValueError(
+            'Dimension mismatch for two matrices: {} vs. {}'.format(pred1.shape[0], pred2.shape[0])
+        )
+    if bedpe_thresh >= 90:
+        min_len = len(np.diag(pred1, 199))
+        all_zval = np.concatenate((
+            np.concatenate([np.diag(pred1, i)[:min_len] for i in range(1, 200)]),
+            np.concatenate([np.diag(pred2, i)[:min_len] for i in range(1, 200)])
+        ))
+        bedpe_thresh = np.percentile(all_zval, bedpe_thresh)
+    
+    coords1 = parse_bedpe(pred1, bedpe_thresh=bedpe_thresh, bedpe_margin=bedpe_margin)
+    coords2 = parse_bedpe(pred2, bedpe_thresh=bedpe_thresh, bedpe_margin=bedpe_margin)
+
+    return coords1, coords2
 
 
 if __name__=='__main__':
