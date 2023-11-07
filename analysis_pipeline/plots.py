@@ -235,7 +235,8 @@ def write_bedpe(coords, chrom, ct, bedpe_dir):
 
 def plot_track(gtf_file, bedpe_dir, ct, chrom, start, gene, locstart, locend, fig_dir):
     swstr = '0.05+score**2/10'
-    hlregion = [f'chr{chrom}:{(locstart+start)*10000}-{(locend+start)*10000}']
+    hlstart, hlend = int((locstart + start) * 1e4), int((locend + start) * 1e4)
+    hlregion = [f'chr{chrom}:{hlstart}-{hlend}']
     gtfs = GTF(gtf_file, length_ratio_thresh=0.005, fontsize=32, height=5) + Title('GTF Annotation')
     arc = Arcs(
         osp.join(bedpe_dir, f'{ct}_chr{chrom}.bedpe'),
@@ -244,7 +245,7 @@ def plot_track(gtf_file, bedpe_dir, ct, chrom, start, gene, locstart, locend, fi
     hl = HighLights(hlregion, color='red', alpha=0.1)
 
     frame = XAxis() + gtfs + hl + Spacer(0.5) + arc + hl
-    test_range = f'chr{chrom}:{(start+300)*10000}-{(start+500)*10000}'
+    test_range = f'chr{chrom}:{(start+300)*200*50}-{(start+500)*200*50}'
     frame.plot(test_range).savefig(osp.join(fig_dir, f'chr{chrom}_{gene}_bedpe.png'))
 
     return
@@ -252,7 +253,8 @@ def plot_track(gtf_file, bedpe_dir, ct, chrom, start, gene, locstart, locend, fi
 
 def plot_track_paired(gtf_file, bedpe_dir, ct1, ct2, chrom, start, gene, locstart, locend, fig_dir):
     swstr = '0.05+score**2/10'
-    hlregion = [f'chr{chrom}:{(locstart+start)*10000}-{(locend+start)*10000}']
+    hlstart, hlend = int((locstart + start) * 1e4), int((locend + start) * 1e4)
+    hlregion = [f'chr{chrom}:{hlstart}-{hlend}']
     gtfs = GTF(gtf_file, length_ratio_thresh=0.005, fontsize=32, height=5) + Title('GTF Annotation')
     arc1 = Arcs(
         osp.join(bedpe_dir, f'{ct1}_chr{chrom}.bedpe'),

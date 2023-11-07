@@ -26,7 +26,13 @@ then
 fi
 
 echo "Current sample: $sample"
-echo "Using chromosome $start to $end"
+
+if [[ $start == $end ]]
+then
+    echo "Using chromosome $start"
+else
+    echo "Using chromosome $start to $end"
+fi
 
 if [[ "$sample" == "am_gfp_myc_thelp_nothelp_gcb" ]]
 then
