@@ -10,6 +10,8 @@ import pickle
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import itertools
+import coolbox
+from coolbox.api import *
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -228,6 +230,44 @@ def write_bedpe(coords, chrom, ct, bedpe_dir):
     with open(bedpe_file, 'w') as file:
         file.writelines(bedpe)
     
+    return
+
+
+def plot_track(gtf_file, bedpe_dir, ct, chrom, start, gene, locstart, locend, fig_dir):
+    swstr = '0.05+score**2/10'
+    hlregion = [f'chr{chrom}:{(locstart+start)*10000}-{(locend+start)*10000}']
+    gtfs = GTF(gtf_file, length_ratio_thresh=0.005, fontsize=32, height=5) + Title('GTF Annotation')
+    arc = Arcs(
+        osp.join(bedpe_dir, f'{ct}_chr{chrom}.bedpe'),
+        linewidth=None, score_to_width=swstr
+    ) + Inverted() + TrackHeight(8) + Title(f'{ct}_chr{chrom}:{gene}')
+    hl = HighLights(hlregion, color='red', alpha=0.1)
+
+    frame = XAxis() + gtfs + hl + Spacer(0.5) + arc + hl
+    test_range = f'chr{chrom}:{(start+300)*10000}-{(start+500)*10000}'
+    frame.plot(test_range).savefig(osp.join(fig_dir, f'chr{chrom}_{gene}_bedpe.png'))
+
+    return
+
+
+def plot_track_paired(gtf_file, bedpe_dir, ct1, ct2, chrom, start, gene, locstart, locend, fig_dir):
+    swstr = '0.05+score**2/10'
+    hlregion = [f'chr{chrom}:{(locstart+start)*10000}-{(locend+start)*10000}']
+    gtfs = GTF(gtf_file, length_ratio_thresh=0.005, fontsize=32, height=5) + Title('GTF Annotation')
+    arc1 = Arcs(
+        osp.join(bedpe_dir, f'{ct1}_chr{chrom}.bedpe'),
+        linewidth=None, score_to_width=swstr
+    ) + Inverted() + TrackHeight(8) + Title(f'{ct1}_chr{chrom}:{gene}')
+    arc2 = Arcs(
+        osp.join(bedpe_dir, f'{ct2}_chr{chrom}.bedpe'),
+        linewidth=None, score_to_width=swstr
+    ) + Inverted() + TrackHeight(8) + Title(f'{ct2}_chr{chrom}:{gene}')
+    hl = HighLights(hlregion, color='red', alpha=0.1)
+
+    frame = XAxis() + gtfs + hl + Spacer(0.5) + arc1 + hl + Spacer(0.5) + arc2 + hl
+    test_range = f'chr{chrom}:{(start+300)*200*50}-{(start+500)*200*50}'
+    frame.plot(test_range).savefig(osp.join(fig_dir, f'chr{chrom}_{gene}_bedpe.png'))
+
     return
 
 

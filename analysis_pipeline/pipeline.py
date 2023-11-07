@@ -96,6 +96,8 @@ def create_bedpe_paired(args, pred1, pred2):
 def plot_gene(args, data, rank, start, locstart, locend, gene):
     fig_dir = osp.join(args.out_dir, 'figure')
     ct = args.ct[0]
+    gtf_file = args.gtf_file
+    bedpe_dir = osp.join(args.out_dir, 'bedpe')
 
     if not osp.exists(fig_dir):
         os.makedirs(fig_dir)
@@ -113,6 +115,7 @@ def plot_gene(args, data, rank, start, locstart, locend, gene):
     plot_atac(atac, ct, chrom, start, gene, locstart, locend, savefig_dir)
     plot_scatac(scatac, ct, chrom, start, gene, locstart, locend, savefig_dir)
     plot_pred(pred, ct, chrom, start, gene, locstart, locend, savefig_dir)
+    plot_track(gtf_file, bedpe_dir, ct, chrom, start, gene, locstart, locend, savefig_dir)
 
     return
 
@@ -120,6 +123,8 @@ def plot_gene(args, data, rank, start, locstart, locend, gene):
 def plot_gene_paired(args, data, rank, start, locstart, locend, gene):
     fig_dir = osp.join(args.out_dir, 'figure')
     ct1, ct2 = args.ct[:2]
+    gtf_file = args.gtf_file
+    bedpe_dir = osp.join(args.out_dir, 'bedpe')
 
     if not osp.exists(fig_dir):
         os.makedirs(fig_dir)
@@ -138,6 +143,7 @@ def plot_gene_paired(args, data, rank, start, locstart, locend, gene):
     plot_atac_paired(atac1, atac2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
     plot_scatac_paired(scatac1, scatac2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
     plot_pred_paired(pred1, pred2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
+    plot_track_paired(gtf_file, bedpe_dir, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
 
     return
 
