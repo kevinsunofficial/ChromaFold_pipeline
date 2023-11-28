@@ -89,7 +89,6 @@ def set_diagonal(mat, value=0):
     return mat
 
 
-
 def load_pred(pred_dir, ct, chrom, pred_len=200, avg_stripe=False):
     file = osp.join(pred_dir, ct, 'prediction_{}_chr{}.npz'.format(ct, chrom))
     temp = np.load(file)['arr_0']
@@ -194,35 +193,6 @@ def check_attr(attr, filters):
     return True
 
 
-def db_query(db, queries, filters=[]):
-    chrom, start, end, attrs = [], [], [], []
-    valid = 0
-    for query in tqdm(queries, desc='querying database', position=0, leave=True):
-        itr = db.execute(query).fetchall()
-        for obj in itr:
-            attr = json.loads(obj['attributes'])
-            if filters:
-                if not check_attr(attr, filters): continue
-            chrom.append(obj['seqid'])
-            start.append(obj['start'])
-            end.append(obj['end'])
-            attrs.append(attr)
-            valid += 1
-    if valid:
-        info = pd.DataFrame({'chrom': chrom, 'start': start, 'end': end})
-        attrs = pd.DataFrame(merge_attr(attrs))
-        res = pd.concat([info, attrs], axis=1)
-        print('databse query completed with {} match(es)'.format(valid))
-    else:
-        res = None
-        warnings.warn(
-            'No match found. Please consider expanding your search by changing the filters',
-            RuntimeWarning
-        )
-
-    return res, valid
-
-
 def db_query_tad(db, ranked, chrom, table='features', featuretype='gene', filters=[]):
     ranked = generate_query_tad(ranked, chrom=chrom, table=table, featuretype=featuretype)
     select = [
@@ -230,7 +200,7 @@ def db_query_tad(db, ranked, chrom, table='features', featuretype='gene', filter
         'gene_type', 'level', 'diff_direction', 'abs_diff_score'
     ]
     all_df = []
-    for i in tqdm(range(ranked.shape[0]), desc='querying database', position=0, leave=True):
+    for i in range(ranked.shape[0]):
         _, _, _, diff_dir, abs_score, _, _, chrom, table, featuretype, query = ranked.iloc[i]
         chrom, start, end, attrs = [], [], [], []
         valid = 0
@@ -258,7 +228,7 @@ def db_query_tad(db, ranked, chrom, table='features', featuretype='gene', filter
         res = pd.concat(all_df, axis=0)
         res = res.drop_duplicates(subset='gene_id', keep='first', ignore_index=True)
         valid = res.shape[0]
-        print(f'databse query completed with {valid} match(es)')
+        print(f'{ranked.shape[0]} databse query completed with {valid} match(es)')
     else:
         res, valid = None, 0
         warnings.warn(

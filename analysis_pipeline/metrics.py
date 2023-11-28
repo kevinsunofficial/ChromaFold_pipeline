@@ -11,40 +11,23 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def quantile_norm(pred1, pred2):
-    if pred1.shape[0] - pred1.shape[1]:
-        raise ValueError(
-            'Matrix 1 is not square ({}, {})'.format(pred1.shape[0], pred1.shape[1])
-        )
-    if pred2.shape[0] - pred2.shape[1]:
-        raise ValueError(
-            'Matrix 2 is not square ({}, {})'.format(pred2.shape[0], pred2.shape[1])
-        )
-    if pred1.shape[0] - pred2.shape[0]:
-        raise ValueError(
-            'Matrix dimension mismatch ({} vs {})'.format(pred1.shape[0], pred2.shape[0])
-        )
-    l = pred1.shape[0]
-    pred1_diag = np.array([
-        np.pad(np.diagonal(pred1, offset=i), (0, i), 'constant') for i in range(200)
-    ]).T
-    pred2_diag = np.array([
-        np.pad(np.diagonal(pred2, offset=i), (0, i), 'constant') for i in range(200)
-    ]).T
-    pred = np.column_stack((pred1_diag.ravel(), pred2_diag.ravel()))
-    df, df_sort = pd.DataFrame(pred), pd.DataFrame(np.sort(pred, axis=0))
-    df_mean = df_sort.mean(axis=1)
+def quantile_normalize(preds):
+    N, H, W = preds.shape
+    assert H == W, f'Matrix is not square ({H}, {W})'
+    pred_diag = np.column_stack((
+        np.array([
+            np.pad(np.diagonal(pred, offset=i), (0, i), 'constant') for i in range(200)
+        ]).T.ravel() for pred in preds
+    ))
+    df, df_mean = pd.DataFrame(pred_diag), pd.DataFrame(np.sort(pred_diag, axis=0)).mean(axis=1)
     df_mean.index += 1
-    df_qn = df.rank(method='min').stack().astype(int).map(df_mean).unstack()
-    pred1_stripe, pred2_stripe = df_qn[0].values.reshape(-1, 200), df_qn[1].values.reshape(-1, 200)
-
-    pred1_qn, pred2_qn = np.zeros_like(pred1), np.zeros_like(pred2)
+    pred_diag_qn = df.rank(method='min').stack().astype(int).map(df_mean).unstack().values.T.reshape(N, -1, 200)
+    preds_qn = np.zeros_like(preds)
     for i in range(200):
-        idx = np.arange(l - i, dtype=int)
-        pred1_qn[idx, idx+i] = pred1_qn[idx+i, idx] = pred1_stripe[:l-i, i]
-        pred2_qn[idx, idx+i] = pred2_qn[idx+i, idx] = pred2_stripe[:l-i, i]
+        idx = np.arange(H - i, dtype=int)
+        preds_qn[:, idx, idx+i] = preds_qn[:, idx+i, idx] = pred_diag_qn[:, :H-i, i]
     
-    return pred1_qn, pred2_qn
+    return preds_qn
 
 
 def topdom(pred_mat, window_size=10, cutoff=None):
@@ -75,54 +58,6 @@ def region_topdom(pred_mat, window_size=10):
     ][window_size:-window_size])
 
     return signal
-
-
-def interpolate(signal, bin_size=10000, pattern='smooth'):
-    if pattern is None: return signal
-    if pattern not in ['smooth', 'zigzag']:
-        raise ValueError(
-            'Bad parameter, expecting \'smooth\' or \'zigzag\' but got \'{}\''.format(pattern)
-        )
-    if pattern=='smooth':
-        l = len(signal) * bin_size
-        sparse, compact = np.linspace(0, l, len(signal)), np.linspace(0, l, l)
-        interp_signal = np.interp(compact, sparse, signal)
-    else:
-        interp_signal = np.tile(signal, (bin_size, 1)).flatten('F')
-    
-    return interp_signal
-
-
-def sim_pearson(signal1, signal2, window_size=10):
-    l = len(signal1)
-    score = np.array([
-        scipy.stats.pearsonr(
-            signal1[i:i+window_size], signal2[i:i+window_size]
-        )[0] for i in range(l-window_size)
-    ])
-    score[score != score] = 1
-
-    return score
-
-
-def sim_difference(signal1, signal2):
-    score = signal1 - signal2
-    score[score != score] = 0
-
-    return score
-
-
-def similarity(signal1, signal2, kernel='diff', window_size=10):
-    if len(signal1)-len(signal2):
-        raise ValueError(
-            'Different signal1.length ({}) and signal2.length ({})'.format(len(signal1), len(signal2))
-        )
-    if kernel == 'diff':
-        score = sim_difference(signal1, signal2)
-    elif kernel == 'pearson':
-        score = sim_pearson(signal1, signal2, window_size=window_size)
-    
-    return score
 
 
 def get_tads(mat, sizes, prominence=0.25):
@@ -240,108 +175,6 @@ def rank_coords_paired(pred1, pred2, coords):
     ranked = df.sort_values(by=['abs_diff_score'], ignore_index=True, ascending=False)
 
     return ranked
-
-
-def threshold(score, cutoff=0.7, kernel='diff', thresh_margin=1000):
-    if kernel == 'diff':
-        indices = np.argwhere(np.abs(score) >= cutoff).flatten()
-    elif kernel == 'pearson':
-        indices = np.argwhere(score <= cutoff).flatten()
-    elif kernel == 'tad_diff':
-        indices = np.argwhere(score >= cutoff).flatten()
-    if len(indices) == 0:
-        raise ValueError(
-            'No valid result above threshold. Please consider expanding your search by changing the filters'
-        )
-    starts, ends = [], []
-    s, e = 0, 0
-    for i in tqdm(indices, desc='selecting significant regions', position=0, leave=True):
-        if not s and not e: s, e = i, i
-        else:
-            if i - e <= thresh_margin: e = i
-            else:
-                starts.append(s)
-                ends.append(e)
-                s, e = i, i
-    if not ends:
-        if s and e:
-            starts.append(s)
-            ends.append(e)
-    else:
-        if e != ends[-1]:
-            starts.append(s)
-            ends.append(e)
-    regions = None
-    if starts and ends:
-        regions = pd.DataFrame({
-            'start': np.array(starts) - thresh_margin,
-            'end': np.array(ends) + thresh_margin
-        })
-    return regions
-
-
-def gaussian(n, sigma):
-    kernel = np.array([
-        1 / (n*np.sqrt(2*np.pi)) * np.exp(-i**2/(2*sigma**2)) for i in range(-n//2, n//2)
-    ])
-    kernel /= kernel.sum()
-
-    return kernel
-
-
-def verification(pred, start, window_size, cutoff=0):
-    if pred.shape[0]-pred.shape[1]:
-        raise ValueError(
-            'Dimension mismatch ({}, {})'.format(pred.shape[0], pred.shape[1])
-        )
-    mat = pred[start:start+700, start:start+700]
-    score = []
-    for i in range(300, 500):
-        val = np.nanmean(mat[i-window_size:i, i:i+window_size])
-        if cutoff is not None:
-            val = cutoff if val < cutoff else val
-        score.append(val)
-    normal = gaussian(len(score), window_size)
-    normalscore = np.array(score).dot(normal)
-
-    return normalscore
-
-
-def verification_paired(pred1, pred2, start, window_size, cutoff=0):
-    if pred1.shape[0]-pred1.shape[1]:
-        raise ValueError(
-            'Dimension mismatch ({}, {})'.format(pred1.shape[0], pred1.shape[1])
-        )
-    if pred2.shape[0]-pred2.shape[1]:
-        raise ValueError(
-            'Dimension mismatch ({}, {})'.format(pred2.shape[0], pred2.shape[1])
-        )
-    mat1, mat2 = pred1[start:start+700, start:start+700], pred2[start:start+700, start:start+700]
-    score1, score2 = [], []
-    for i in range(300, 500):
-        val1 = np.nanmean(mat1[i-window_size:i, i:i+window_size])
-        val2 = np.nanmean(mat2[i-window_size:i, i:i+window_size])
-        if cutoff is not None:
-            val1 = cutoff if val1 < cutoff else val1
-            val2 = cutoff if val2 < cutoff else val2
-        score1.append(val1)
-        score2.append(val2)
-    score = np.abs(np.array(score1) - np.array(score2))
-    normal = gaussian(len(score), window_size)
-    normalscore = score.dot(normal)
-
-    return normalscore
-
-
-def match_tad_score(ranked, start):
-    this_diff_dir, this_abs_score = 0, 0
-    for i in range(ranked.shape[0]):
-        x, y, _, diff_dir, abs_score = ranked.iloc[i]
-        if x <= start <= y:
-            this_diff_dir, this_abs_score = diff_dir, abs_score
-            return this_diff_dir, this_abs_score
-    
-    return this_diff_dir, this_abs_score
 
 
 def merge_bedpe(coords, bedpe_margin):

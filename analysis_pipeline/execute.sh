@@ -44,8 +44,8 @@ do
     then
         time python pipeline.py --input_dir /data/leslie/suny4/processed_input/ \
             --pred_dir /data/leslie/suny4/predictions/chromafold/ \
-            --ct $samplex --chrom $i --avg_stripe --kernel tad_diff \
-            --min_dim 20 --max_dim 80 --num_dim 15 --close 10
+            --ct $samplex --chrom $i --avg_stripe \
+            --min_dim 20 --max_dim 80 --num_dim 15 --close 10 \
             --filters gene_type=protein_coding \
             --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
             --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
@@ -53,8 +53,8 @@ do
     else
         time python pipeline.py --input_dir /data/leslie/suny4/processed_input/ \
             --pred_dir /data/leslie/suny4/predictions/chromafold/ \
-            --paired --ct $samplex $sampley --chrom $i --avg_stripe --kernel tad_diff \
-            --min_dim 20 --max_dim 80 --num_dim 15 --close 10
+            --ct $samplex $sampley --chrom $i --avg_stripe \
+            --min_dim 20 --max_dim 80 --num_dim 15 --close 10 \
             --filters gene_type=protein_coding \
             --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
             --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
