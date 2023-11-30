@@ -106,7 +106,7 @@ def plot_gene_paired(args, data, rank, start, locstart, locend, gene):
     return
 
 
-def pipe_single_tads(args):
+def single_significance(args):
     """
         TODO:
             1. add bedpe files generation and gene track plotting
@@ -173,7 +173,7 @@ def pipe_single_tads(args):
     return res
 
 
-def pairwise_difference_tads(args):
+def pairwise_significance(args):
     """
         TODO: add bedpe files generation and gene track plotting
     """
@@ -291,9 +291,8 @@ if __name__=='__main__':
         exit()
 
     if len(ct) > 1:
-        res = pairwise_difference_tads(args)
+        res = pairwise_significance(args)
     else:
-        res = pipe_single_tads(args)
+        res = single_significance(args)
     
     print('Done')
-
