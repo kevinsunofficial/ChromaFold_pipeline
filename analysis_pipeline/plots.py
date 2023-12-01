@@ -177,7 +177,7 @@ def plot_scatac_paired(scatac1, scatac2, ct1, ct2, chrom, start, gene, locstart,
     return
 
 
-def plot_pred_paired(predmat1, predmat2, ct1, ct2, chrom, start, gene, locstart, locend, fig_dir):
+def plot_pred_paired(predmat1, predmat2, preddiffmat, ct1, ct2, chrom, start, gene, locstart, locend, fig_dir):
     plt.rcParams['figure.figsize'] = 8, 9.5
     plt.rcParams['figure.autolayout'] = False
 
@@ -186,9 +186,11 @@ def plot_pred_paired(predmat1, predmat2, ct1, ct2, chrom, start, gene, locstart,
     fig.tight_layout(rect=[0.01, 0.03, 1, 9/9.5], h_pad=2)
     
     vmaxs, vmins = [4, 4, 2], [-1, -1, -2]
-    pred1 = np.triu(predmat1[start:start+700, start:start+700])
-    pred2 = np.triu(predmat2[start:start+700, start:start+700])
-    preds = [pred1, pred2, pred1-pred2]
+    preds = [
+        np.triu(predmat1[start:start+700, start:start+700]),
+        np.triu(predmat2[start:start+700, start:start+700]),
+        np.triu(preddiffmat[start:start+700, start:start+700])
+    ]
     cts = [ct1, ct2, 'Difference']
     
     for i in range(3):

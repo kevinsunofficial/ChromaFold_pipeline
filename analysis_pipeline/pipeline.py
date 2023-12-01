@@ -44,7 +44,8 @@ def create_bedpe_paired(args, pred1, pred2):
     if not osp.exists(bedpe_dir):
         os.makedirs(bedpe_dir)
     
-    coords1, coords2 = parse_bedpe_paired(pred1, pred2, bedpe_thresh=bedpe_thresh, bedpe_margin=bedpe_margin)
+    coords1 = parse_bedpe(pred1, bedpe_thresh=bedpe_thresh, bedpe_margin=bedpe_margin)
+    coords2 = parse_bedpe(pred2, bedpe_thresh=bedpe_thresh, bedpe_margin=bedpe_margin)
     write_bedpe(coords1, chrom, ct1, bedpe_dir)
     write_bedpe(coords2, chrom, ct2, bedpe_dir)
 
@@ -87,7 +88,7 @@ def plot_gene_paired(args, data, rank, start, locstart, locend, gene):
     if not osp.exists(fig_dir):
         os.makedirs(fig_dir)
 
-    ctcf, atac1, atac2, scatac_pre1, scatac_pre2, metacell1, metacell2, pred1, pred2 = data
+    ctcf, atac1, atac2, scatac_pre1, scatac_pre2, metacell1, metacell2, pred1, pred2, pred_diff = data
     ctcf = ctcf[start*200: (start+700)*200]
     atac1, atac2 = atac1[start*200: (start+700)*200], atac2[start*200: (start+700)*200]
     scatac1 = process_scatac(scatac_pre1, metacell1, start)
@@ -100,17 +101,13 @@ def plot_gene_paired(args, data, rank, start, locstart, locend, gene):
     plot_ctcf(ctcf, chrom, start, gene, locstart, locend, savefig_dir)
     plot_atac_paired(atac1, atac2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
     plot_scatac_paired(scatac1, scatac2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
-    plot_pred_paired(pred1, pred2, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
+    plot_pred_paired(pred1, pred2, pred_diff, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
     plot_track_paired(gtf_file, bedpe_dir, ct1, ct2, chrom, start, gene, locstart, locend, savefig_dir)
 
     return
 
 
 def single_significance(args):
-    """
-        TODO:
-            1. add bedpe files generation and gene track plotting
-    """
     input_dir = args.input_dir
     pred_dir = args.pred_dir
     ct = args.ct[0]
@@ -174,9 +171,6 @@ def single_significance(args):
 
 
 def pairwise_significance(args):
-    """
-        TODO: add bedpe files generation and gene track plotting
-    """
     input_dir = args.input_dir
     pred_dir = args.pred_dir
     ct1, ct2 = args.ct[:2]
@@ -212,11 +206,12 @@ def pairwise_significance(args):
     print('Normalizing predictions...')
     preds_qn = quantile_normalize(np.array([pred1, pred2]))
     pred1, pred2 = preds_qn[0], preds_qn[1]
-    data = [ctcf, atac1, atac2, scatac1, scatac2, metacell1, metacell2, pred1, pred2]
+    pred_diff = pred1 - pred2
+    data = [ctcf, atac1, atac2, scatac1, scatac2, metacell1, metacell2, pred1, pred2, pred_diff]
 
     print('Calculating TADs Similarity...')
-    coords = get_tad_coords(pred1, pred2=pred2, min_dim=min_dim, max_dim=max_dim, num_dim=num_dim, close=close)
-    ranked = rank_coords_paired(pred1, pred2, coords)
+    coords = get_tad_coords(pred_diff, min_dim=min_dim, max_dim=max_dim, num_dim=num_dim, close=close)
+    ranked = rank_coords(pred_diff, coords)
 
     print('Querying database...')
     db = load_database(db_file, gtf_file)

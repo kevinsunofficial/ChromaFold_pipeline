@@ -11,21 +11,22 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def quantile_normalize(preds):
+def quantile_normalize(preds, offset=2):
     N, H, W = preds.shape
     assert H == W, f'Matrix is not square ({H}, {W})'
     pred_diag = np.column_stack((
         np.array([
-            np.pad(np.diagonal(pred, offset=i), (0, i), 'constant') for i in range(200)
+            np.pad(np.diagonal(pred, offset=i), (0, i), 'constant') for i in range(offset, 200)
         ]).T.ravel() for pred in preds
     ))
     df, df_mean = pd.DataFrame(pred_diag), pd.DataFrame(np.sort(pred_diag, axis=0)).mean(axis=1)
     df_mean.index += 1
-    pred_diag_qn = df.rank(method='min').stack().astype(int).map(df_mean).unstack().values.T.reshape(N, -1, 200)
+    pred_diag_qn = df.rank(method='min').stack().astype(int).map(df_mean).unstack().values
+    pred_diag_qn = pred_diag_qn.T.reshape(N, -1, 200-offset)
     preds_qn = np.zeros_like(preds)
-    for i in range(200):
+    for i in range(offset, 200):
         idx = np.arange(H - i, dtype=int)
-        preds_qn[:, idx, idx+i] = preds_qn[:, idx+i, idx] = pred_diag_qn[:, :H-i, i]
+        preds_qn[:, idx, idx+i] = preds_qn[:, idx+i, idx] = pred_diag_qn[:, :H-i, i-offset]
     
     return preds_qn
 
@@ -46,22 +47,8 @@ def topdom(pred_mat, window_size=10, cutoff=None):
     return signal
 
 
-def region_topdom(pred_mat, window_size=10):
-    if pred_mat.shape[0]-pred_mat.shape[1]:
-        raise ValueError(
-            'Matrix is not square ({}, {})'.format(pred_mat.shape[0], pred_mat.shape[1])
-        )
-    pad_mat = np.pad(pred_mat, window_size, mode='constant', constant_values=np.nan)
-    dim = pad_mat.shape[0]
-    signal = np.array([
-        np.nanmean(pad_mat[i-window_size:i+window_size, i-window_size:i+window_size]) for i in range(dim)
-    ][window_size:-window_size])
-
-    return signal
-
-
 def get_tads(mat, sizes, prominence=0.25):
-    signal = np.array([region_topdom(mat, i) for i in sizes])
+    signal = np.array([topdom(mat, i) for i in sizes])
     rows, idxs = [], []
     for i in range(len(signal)):
         idx = find_peaks(signal[i], prominence=(prominence,))[0]
@@ -115,64 +102,49 @@ def merge_coords(coords, sizes, close=5):
     return merged.values.T
 
 
-def get_tad_coords(pred1, pred2=None, min_dim=10, max_dim=100, num_dim=10, close=5):
+def get_tad_coords(pred, min_dim=10, max_dim=100, num_dim=10, close=5):
 
     def generate_sizes(min_dim, max_dim, num_dim):
         min_dim, max_dim = max(1, min_dim), min(100, max_dim)
         return np.linspace(min_dim, max_dim, num=num_dim, dtype=int)
     
     sizes = generate_sizes(min_dim, max_dim, num_dim)
-    tads1 = get_tads(pred1, sizes)
-    if pred2 is not None:
-        tads2 = get_tads(pred2, sizes)
-        alltads = np.concatenate((tads1, tads2), axis=1)
-        allcoords = tads_to_coords(alltads, sizes)
-    else:
-        allcoords = tads_to_coords(tads1, sizes)
+    tads = get_tads(pred, sizes)
+    allcoords = tads_to_coords(tads, sizes)
     coords = merge_coords(allcoords, sizes, close)
 
     return coords
 
 
+def score_area(area):
+    mean = np.mean(area)
+    direction = 1 if mean >= 0 else -1
+    feature = np.array([
+        mean, np.ptp(area), np.std(area), area.shape[0]
+    ])
+    weight = np.array([10, 1, 3, 0.2])
+    weight /= np.linalg.norm(weight)
+    score = direction * (feature @ weight)
+    
+    return score, abs(score)
+
+
 def rank_coords(pred, coords):
-    xs, ys, ss, diff_dirs, abs_scores = [], [], [], [], []
+    xs, ys, ss, scores, abs_scores = [], [], [], [], []
     for i in range(coords.shape[1]):
         x, y, s = coords[:, i]
         area = pred[x:y+1, x:y+1]
-        diff_dir = np.mean(area)
-        abs_score = np.std(area) * np.ptp(area)
+        score, abs_score = score_area(area)
         xs.append(x)
         ys.append(y)
         ss.append(s)
-        diff_dirs.append(diff_dir)
+        scores.append(score)
         abs_scores.append(abs_score)
     df = pd.DataFrame({
         'x_coord': xs, 'y_coord': ys, 'window_size': ss,
-        'diff_direction': diff_dirs, 'abs_diff_score': abs_scores
+        'score': scores, 'abs_score': abs_scores
     })
-    ranked = df.sort_values(by=['abs_diff_score'], ignore_index=True, ascending=False)
-
-    return ranked
-
-
-def rank_coords_paired(pred1, pred2, coords):
-    xs, ys, ss, diff_dirs, abs_scores = [], [], [], [], []
-    for i in range(coords.shape[1]):
-        x, y, s = coords[:, i]
-        area1, area2 = pred1[x:y+1, x:y+1], pred2[x:y+1, x:y+1]
-        area_diff = area1 - area2
-        diff_dir = np.mean(area_diff)
-        abs_score = np.std(area_diff) * np.ptp(area_diff)
-        xs.append(x)
-        ys.append(y)
-        ss.append(s)
-        diff_dirs.append(diff_dir)
-        abs_scores.append(abs_score)
-    df = pd.DataFrame({
-        'x_coord': xs, 'y_coord': ys, 'window_size': ss,
-        'diff_direction': diff_dirs, 'abs_diff_score': abs_scores
-    })
-    ranked = df.sort_values(by=['abs_diff_score'], ignore_index=True, ascending=False)
+    ranked = df.sort_values(by=['abs_score'], ignore_index=True, ascending=False)
 
     return ranked
 
@@ -226,29 +198,6 @@ def parse_bedpe(pred, bedpe_thresh=99., bedpe_margin=None):
         coords = np.column_stack((coords[:, 0], coords[:, 0], coords[:, 1], coords[:, 1], coords[:, 2]))
 
     return coords
-
-
-def parse_bedpe_paired(pred1, pred2, bedpe_thresh=99., bedpe_margin=None):
-    if pred1.shape[0]-pred1.shape[1]:
-        raise ValueError(
-            'Dimension mismatch ({}, {})'.format(pred1.shape[0], pred1.shape[1])
-        )
-    if pred1.shape[0]-pred2.shape[0]:
-        raise ValueError(
-            'Dimension mismatch for two matrices: {} vs. {}'.format(pred1.shape[0], pred2.shape[0])
-        )
-    if bedpe_thresh >= 90:
-        min_len = len(np.diag(pred1, 199))
-        all_zval = np.concatenate((
-            np.concatenate([np.diag(pred1, i)[:min_len] for i in range(1, 200)]),
-            np.concatenate([np.diag(pred2, i)[:min_len] for i in range(1, 200)])
-        ))
-        bedpe_thresh = np.percentile(all_zval, bedpe_thresh)
-    
-    coords1 = parse_bedpe(pred1, bedpe_thresh=bedpe_thresh, bedpe_margin=bedpe_margin)
-    coords2 = parse_bedpe(pred2, bedpe_thresh=bedpe_thresh, bedpe_margin=bedpe_margin)
-
-    return coords1, coords2
 
 
 if __name__=='__main__':

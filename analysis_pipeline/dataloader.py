@@ -197,11 +197,11 @@ def db_query_tad(db, ranked, chrom, table='features', featuretype='gene', filter
     ranked = generate_query_tad(ranked, chrom=chrom, table=table, featuretype=featuretype)
     select = [
         'chrom', 'start', 'end', 'gene_name', 'gene_id',
-        'gene_type', 'level', 'diff_direction', 'abs_diff_score'
+        'gene_type', 'level', 'score', 'abs_score'
     ]
     all_df = []
     for i in range(ranked.shape[0]):
-        _, _, _, diff_dir, abs_score, _, _, chrom, table, featuretype, query = ranked.iloc[i]
+        _, _, _, score, abs_score, _, _, chrom, table, featuretype, query = ranked.iloc[i]
         chrom, start, end, attrs = [], [], [], []
         valid = 0
         itr = db.execute(query).fetchall()
@@ -220,8 +220,8 @@ def db_query_tad(db, ranked, chrom, table='features', featuretype='gene', filter
             })
             attrs = pd.DataFrame(merge_attr(attrs))
             res = pd.concat([info, attrs], axis=1)
-            res['diff_direction'] = diff_dir
-            res['abs_diff_score'] = abs_score
+            res['score'] = score
+            res['abs_score'] = abs_score
             res = res[select]
             all_df.append(res)
     if all_df:
