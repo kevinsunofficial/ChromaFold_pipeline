@@ -93,8 +93,6 @@ def single_significance(args):
     pred_dir = args.pred_dir
     ct = args.ct[0]
     chrom = args.chrom
-    pred_len = args.pred_len
-    avg_stripe = args.avg_stripe
 
     min_dim = args.min_dim
     max_dim = args.max_dim
@@ -117,7 +115,7 @@ def single_significance(args):
     ctcf, atac, scatac, metacell = load_multiome(input_dir, ct, chrom, start=None)
 
     print('Loading predictions...')
-    pred = load_pred(pred_dir, ct, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
+    pred = load_pred(pred_dir, ct, chrom)
     data = [ctcf, atac, scatac, metacell, pred]
 
     print('Calculating TADs...')
@@ -155,9 +153,8 @@ def pairwise_significance(args):
     input_dir = args.input_dir
     pred_dir = args.pred_dir
     ct1, ct2 = args.ct[:2]
+    ctc = None if len(args.ct) == 2 else args.ct[-1] # control
     chrom = args.chrom
-    pred_len = args.pred_len
-    avg_stripe = args.avg_stripe
 
     min_dim = args.min_dim
     max_dim = args.max_dim
@@ -181,11 +178,13 @@ def pairwise_significance(args):
     _, atac2, scatac2, metacell2 = load_multiome(input_dir, ct2, chrom, start=None)
 
     print('Loading predictions...')
-    pred1 = load_pred(pred_dir, ct1, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
-    pred2 = load_pred(pred_dir, ct2, chrom, pred_len=pred_len, avg_stripe=avg_stripe)
+    pred1 = load_pred(pred_dir, ct1, chrom)
+    pred2 = load_pred(pred_dir, ct2, chrom)
+    predc = None if ctc is None else load_pred(pred_dir, ctc, chrom)
 
     print('Normalizing predictions...')
-    preds_qn = quantile_normalize(np.array([pred1, pred2]))
+    allpred = np.array([pred1, pred2]) if predc is None else np.array([pred1, pred2, predc])
+    preds_qn = quantile_normalize(allpred)
     pred1, pred2 = preds_qn[0], preds_qn[1]
     pred_diff = pred1 - pred2
     data = [ctcf, atac1, atac2, scatac1, scatac2, metacell1, metacell2, pred1, pred2, pred_diff]
@@ -233,10 +232,8 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_dir', required=True, type=str, help='ChromaFold multiome input directory')
     parser.add_argument('--pred_dir', required=True, type=str, help='ChromaFold prediction result directory')
-    parser.add_argument('--ct', required=True, type=str, nargs='+', help='Full cell type names, for paired this would be two cell types')
+    parser.add_argument('--ct', required=True, type=str, nargs='+', help='Full cell type names, can take 1, 2, or 3 cts')
     parser.add_argument('--chrom', required=True, type=str, help='Chromosome number')
-    parser.add_argument('--pred_len', required=False, type=int, default=200, help='Prediction length, default=200')
-    parser.add_argument('--avg_stripe', required=False, action='store_true', help='Average V-stripe, default=False')
 
     parser.add_argument('--min_dim', required=False, type=int, default=10, help='Minimum window size for running Region TopDom, default=10')
     parser.add_argument('--max_dim', required=False, type=int, default=100, help='Maximum window size for running Region TopDom, default=100')

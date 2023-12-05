@@ -89,7 +89,7 @@ def set_diagonal(mat, value=0):
     return mat
 
 
-def load_pred(pred_dir, ct, chrom, pred_len=200, avg_stripe=False):
+def load_pred(pred_dir, ct, chrom, pred_len=200, avg_stripe=True):
     file = osp.join(pred_dir, ct, 'prediction_{}_chr{}.npz'.format(ct, chrom))
     temp = np.load(file)['arr_0']
     chrom_len = temp.shape[0]
