@@ -120,20 +120,6 @@ def load_database(db_file, gtf_file):
     return db
 
 
-def parse_query(line):
-    start, end, chrom, table, featuretype = line
-    select_from = 'SELECT * FROM {} WHERE'.format(table)
-    start_req = 'start >= {}'.format(start)
-    end_req = 'end <= {}'.format(end)
-    len_req = 'end - start >= 1000'
-    chrom_req = 'seqid = \"chr{}\"'.format(chrom)
-    feature_req = 'featuretype = \"{}\"'.format(featuretype)
-    where_reqs = ' AND '.join([start_req, end_req, len_req, chrom_req, feature_req])
-    query = ' '.join([select_from, where_reqs])
-    
-    return query
-
-
 def parse_query_tad(line):
     _, _, _, _, _, left, right, chrom, table, featuretype = line
     select_from = f'SELECT * FROM {table} WHERE'
@@ -148,18 +134,9 @@ def parse_query_tad(line):
     return query
 
 
-def generate_query(regions, chrom, table='features', featuretype='gene'):
-    regions['chrom'] = chrom
-    regions['table'] = table
-    regions['featuretype'] = featuretype
-    reqs = regions.apply(parse_query, 1)
-
-    return reqs
-
-
 def generate_query_tad(ranked, chrom, table='features', featuretype='gene'):
-    ranked['left'] = (ranked.x_coord - 10) * int(1e4)
-    ranked['right'] = (ranked.y_coord + 10) * int(1e4)
+    ranked['left'] = (ranked.x_coord - 1) * int(1e4)
+    ranked['right'] = (ranked.y_coord + 1) * int(1e4)
     ranked['chrom'] = chrom
     ranked['table'] = table
     ranked['featuretype'] = featuretype
@@ -226,7 +203,11 @@ def db_query_tad(db, ranked, chrom, table='features', featuretype='gene', filter
             all_df.append(res)
     if all_df:
         res = pd.concat(all_df, axis=0)
-        res = res.drop_duplicates(subset='gene_id', keep='first', ignore_index=True)
+        res = res.groupby([
+            'chrom', 'start', 'end', 'gene_name', 'gene_id', 'gene_type', 'level'
+        ], as_index=False).agg({
+            'score': 'sum', 'abs_score': 'sum'
+        }).sort_values(by=['abs_score'], ignore_index=True, ascending=False)
         valid = res.shape[0]
         print(f'{ranked.shape[0]} databse query completed with {valid} match(es)')
     else:
@@ -236,7 +217,7 @@ def db_query_tad(db, ranked, chrom, table='features', featuretype='gene', filter
             RuntimeWarning
         )
     
-    return res, valid        
+    return res, valid
 
 
 def parse_res(row):

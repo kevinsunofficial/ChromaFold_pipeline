@@ -189,7 +189,7 @@ def pairwise_significance(args):
     pred_diff = pred1 - pred2
     data = [ctcf, atac1, atac2, scatac1, scatac2, metacell1, metacell2, pred1, pred2, pred_diff]
 
-    print('Calculating TADs Similarity...')
+    print('Calculating TADs similarity...')
     coords = get_tad_coords(pred_diff, min_dim=min_dim, max_dim=max_dim, num_dim=num_dim, close=close)
     ranked = rank_coords(pred_diff, coords)
 

@@ -116,25 +116,28 @@ def get_tad_coords(pred, min_dim=10, max_dim=100, num_dim=10, close=5):
     return coords
 
 
-def score_area(area):
-    mean = np.mean(area)
-    direction = 1 if mean >= 0 else -1
-    feature = np.array([
-        mean, np.ptp(area), np.std(area), area.shape[0]
-    ])
-    weight = np.array([10, 1, 3, 0.2])
-    weight /= np.linalg.norm(weight)
-    score = direction * (feature @ weight)
-    
-    return score, abs(score)
+def score_stripe(stripe):
+    lower, upper = np.nanpercentile(stripe, [10, 90])
+    masked = stripe[(stripe >= upper) | (stripe <= lower)]
+    score, abs_score = np.nanmean(masked), np.nanmean(np.abs(masked))
+
+    return score, abs_score
 
 
 def rank_coords(pred, coords):
     xs, ys, ss, scores, abs_scores = [], [], [], [], []
+    l = pred.shape[0]
     for i in range(coords.shape[1]):
         x, y, s = coords[:, i]
-        area = pred[x:y+1, x:y+1]
-        score, abs_score = score_area(area)
+        stripe = []
+        for i in np.arange(x, y+1, dtype=int):
+            left = pred[max(0, i-200):i+1, i]
+            right = pred[i, i:min(i+201, l)]
+            left = np.pad(left, (201 - len(left), 0), 'empty')
+            right = np.pad(right, (0, 201 - len(right)), 'empty')
+            stripe.append(np.array([left, right]).flatten())
+        stripe = np.array(stripe)
+        score, abs_score = score_stripe(stripe)
         xs.append(x)
         ys.append(y)
         ss.append(s)
@@ -144,9 +147,8 @@ def rank_coords(pred, coords):
         'x_coord': xs, 'y_coord': ys, 'window_size': ss,
         'score': scores, 'abs_score': abs_scores
     })
-    ranked = df.sort_values(by=['abs_score'], ignore_index=True, ascending=False)
 
-    return ranked
+    return df
 
 
 def merge_bedpe(coords, bedpe_margin):
