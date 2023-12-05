@@ -18,10 +18,9 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def create_bedpe(args, pred):
+def create_bedpe(args, ct, pred):
     bedpe_dir = osp.join(args.out_dir, 'bedpe')
     chrom = args.chrom
-    ct = args.ct[0]
     bedpe_thresh = args.bedpe_thresh
     bedpe_margin = args.bedpe_margin
 
@@ -30,24 +29,6 @@ def create_bedpe(args, pred):
     
     coords = parse_bedpe(pred, bedpe_thresh=bedpe_thresh, bedpe_margin=bedpe_margin)
     write_bedpe(coords, chrom, ct, bedpe_dir)
-
-    return
-
-
-def create_bedpe_paired(args, pred1, pred2):
-    bedpe_dir = osp.join(args.out_dir, 'bedpe')
-    chrom = args.chrom
-    ct1, ct2 = args.ct[:2]
-    bedpe_thresh = args.bedpe_thresh
-    bedpe_margin = args.bedpe_margin
-
-    if not osp.exists(bedpe_dir):
-        os.makedirs(bedpe_dir)
-    
-    coords1 = parse_bedpe(pred1, bedpe_thresh=bedpe_thresh, bedpe_margin=bedpe_margin)
-    coords2 = parse_bedpe(pred2, bedpe_thresh=bedpe_thresh, bedpe_margin=bedpe_margin)
-    write_bedpe(coords1, chrom, ct1, bedpe_dir)
-    write_bedpe(coords2, chrom, ct2, bedpe_dir)
 
     return
 
@@ -150,7 +131,7 @@ def single_significance(args):
     print('Calculation and query is completed.\n\nGenerating results...')
     
     print('Writing BEDPE files...')
-    create_bedpe(args, pred)
+    create_bedpe(args, ct, pred)
 
     if numvalid:
         query_dir = osp.join(out_dir, 'query')
@@ -220,7 +201,8 @@ def pairwise_significance(args):
     print('Calculation and query is completed.\n\nGenerating results...')
     
     print('Writing BEDPE files...')
-    create_bedpe_paired(args, pred1, pred2)
+    create_bedpe(args, ct1, pred1)
+    create_bedpe(args, ct2, pred2)
 
     if numvalid:
         query_dir = osp.join(out_dir, 'query')
