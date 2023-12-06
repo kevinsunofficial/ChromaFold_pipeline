@@ -117,9 +117,10 @@ def get_tad_coords(pred, min_dim=10, max_dim=100, num_dim=10, close=5):
 
 
 def score_stripe(stripe):
-    lower, upper = np.nanpercentile(stripe, [10, 90])
-    masked = stripe[(stripe >= upper) | (stripe <= lower)]
-    score, abs_score = np.nanmean(masked), np.nanmean(np.abs(masked))
+    # lower, upper = np.nanpercentile(stripe, [10, 90])
+    lower, upper = -1.5, 1.5
+    stripe[(stripe < upper) & (stripe > lower)] = 0
+    score, abs_score = np.nansum(stripe), np.nansum(np.abs(stripe))
 
     return score, abs_score
 
@@ -130,12 +131,12 @@ def rank_coords(pred, coords):
     for i in range(coords.shape[1]):
         x, y, s = coords[:, i]
         stripe = []
-        for i in np.arange(x, y+1, dtype=int):
-            left = pred[max(0, i-200):i+1, i]
-            right = pred[i, i:min(i+201, l)]
-            left = np.pad(left, (201 - len(left), 0), 'empty')
-            right = np.pad(right, (0, 201 - len(right)), 'empty')
-            stripe.append(np.array([left, right]).flatten())
+        for i in np.arange(max(200, x), min(y+1, l-200), dtype=int):
+            left = pred[i-200:i+1, i]
+            right = pred[i, i:i+201]
+            left_pad = np.pad(left, (201 - len(left), 0), 'empty')
+            right_pad = np.pad(right, (0, 201 - len(right)), 'empty')
+            stripe.append(np.array([left_pad, right_pad]).flatten())
         stripe = np.array(stripe)
         score, abs_score = score_stripe(stripe)
         xs.append(x)
