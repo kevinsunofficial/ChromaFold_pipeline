@@ -47,109 +47,29 @@ def topdom(pred_mat, window_size=10, cutoff=None):
     return signal
 
 
-def get_tads(mat, sizes, prominence=0.25):
-    signal = np.array([topdom(mat, i) for i in sizes])
-    rows, idxs = [], []
-    for i in range(len(signal)):
-        idx = find_peaks(signal[i], prominence=(prominence,))[0]
-        row = np.full_like(idx, i)
-        rows.append(row)
-        idxs.append(idx)
-    tads = np.array([
-        np.concatenate(rows, axis=None), np.concatenate(idxs, axis=None)
-    ])
-
-    return tads
-
-
-def tads_to_coords(tads, sizes):
-    coords = np.array([
-        tads[1] - sizes[tads[0]], tads[1] + sizes[tads[0]]
-    ])
-
-    return coords
-
-
-def merge_coords(coords, sizes, close=5):
-    df = pd.DataFrame({'x': coords[0], 'y': coords[1]})
-    merged = df.groupby('x', as_index=False).agg({'y': 'max'})
-    merged['s'] = (merged.y - merged.x) // 2
-    merged = merged.sort_values(by=['x']).reset_index(drop=True)
-
-    i = 0
-    curx, cury, curs = merged.iloc[i]
-
-    while i+1 < merged.shape[0]:
-        x, y, s = merged.iloc[i+1]
-        if s == curs:
-            if abs(x - curx) <= close:
-                curx, cury = min(curx, x), max(cury, y)
-                curs = (cury - curx) // 2
-                merged = merged.drop(i+1, axis=0).reset_index(drop=True)
-            else:
-                curx, cury, curs = x, y, s
-                i += 1
-        else:
-            if abs(x - curx) <= close or abs(y - cury) <= close:
-                curx, cury = min(curx, x), max(cury, y)
-                curs = (cury - curx) // 2
-                merged = merged.drop(i+1, axis=0).reset_index(drop=True)
-            else:
-                curx, cury, curs = x, y, s
-                i += 1
-        merged.iloc[i] = [curx, cury, curs]
-    
-    return merged.values.T
-
-
-def get_tad_coords(pred, min_dim=10, max_dim=100, num_dim=10, close=5):
-
-    def generate_sizes(min_dim, max_dim, num_dim):
-        min_dim, max_dim = max(1, min_dim), min(100, max_dim)
-        return np.linspace(min_dim, max_dim, num=num_dim, dtype=int)
-    
-    sizes = generate_sizes(min_dim, max_dim, num_dim)
-    tads = get_tads(pred, sizes)
-    allcoords = tads_to_coords(tads, sizes)
-    coords = merge_coords(allcoords, sizes, close)
-
-    return coords
-
-
-def score_stripe(stripe):
-    # lower, upper = np.nanpercentile(stripe, [10, 90])
-    lower, upper = -1.5, 1.5
-    stripe[(stripe < upper) & (stripe > lower)] = 0
-    score, abs_score = np.nansum(stripe), np.nansum(np.abs(stripe))
-
-    return score, abs_score
-
-
-def rank_coords(pred, coords):
-    xs, ys, ss, scores, abs_scores = [], [], [], [], []
+def score_genes(pred, res):
     l = pred.shape[0]
-    for i in range(coords.shape[1]):
-        x, y, s = coords[:, i]
+    scores, abs_scores = [], []
+
+    for i in range(res.shape[0]):
+        start, end = res.iloc[i].start, res.iloc[i].end
+        start, end = start // int(1e4), end // int(1e4)
         stripe = []
-        for i in np.arange(max(200, x), min(y+1, l-200), dtype=int):
-            left = pred[i-200:i+1, i]
-            right = pred[i, i:i+201]
-            left_pad = np.pad(left, (201 - len(left), 0), 'empty')
-            right_pad = np.pad(right, (0, 201 - len(right)), 'empty')
+        for i in range(max(200, start - 10), min(end + 11, l - 200)):
+            left, right = pred[i-200:i, i], pred[i, i+1:i+201]
+            left_pad = np.pad(left, (200 - len(left), 0), 'empty')
+            right_pad = np.pad(right, (0, 200 - len(right)), 'empty')
             stripe.append(np.array([left_pad, right_pad]).flatten())
         stripe = np.array(stripe)
-        score, abs_score = score_stripe(stripe)
-        xs.append(x)
-        ys.append(y)
-        ss.append(s)
-        scores.append(score)
-        abs_scores.append(abs_score)
-    df = pd.DataFrame({
-        'x_coord': xs, 'y_coord': ys, 'window_size': ss,
-        'score': scores, 'abs_score': abs_scores
-    })
+        stripe[(stripe < 1) & (stripe > -1)] = 0
+        scores.append(np.nansum(stripe))
+        abs_scores.append(np.nansum(np.abs(stripe)))
+    
+    res['score'] = scores
+    res['abs_score'] = abs_scores
+    res = res.sort_values(by='abs_score', ignore_index=True, ascending=False)
 
-    return df
+    return res
 
 
 def merge_bedpe(coords, bedpe_margin):

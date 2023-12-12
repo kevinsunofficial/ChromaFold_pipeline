@@ -120,40 +120,7 @@ def load_database(db_file, gtf_file):
     return db
 
 
-def parse_query_tad(line):
-    _, _, _, _, _, left, right, chrom, table, featuretype = line
-    select_from = f'SELECT * FROM {table} WHERE'
-    start_req = f'start >= {left} AND start <= {right}'
-    end_req = f'end >= {left} AND end <= {right}'
-    len_req = 'end - start >= 1000'
-    chrom_req = f'seqid = \"chr{chrom}\"'
-    feature_req = f'featuretype = \"{featuretype}\"'
-    where_reqs = ' AND '.join([start_req, end_req, len_req, chrom_req, feature_req])
-    query = ' '.join([select_from, where_reqs])
-    
-    return query
-
-
-def generate_query_tad(ranked, chrom, table='features', featuretype='gene'):
-    ranked['left'] = (ranked.x_coord - 1) * int(1e4)
-    ranked['right'] = (ranked.y_coord + 1) * int(1e4)
-    ranked['chrom'] = chrom
-    ranked['table'] = table
-    ranked['featuretype'] = featuretype
-    ranked['reqs'] = ranked.apply(parse_query_tad, 1)
-
-    return ranked
-
-
-def merge_attr(attrs):
-    if not attrs:
-        raise ValueError(
-            'No attributes detected. Please consider expanding your search by changing the filters'
-        )
-    return {k: [attr[k][0] if k in attr else None for attr in attrs] for k in attrs[0].keys()}
-
-
-def check_attr(attr, filters):
+def check_attr(attr, filters=['gene_type=protein_coding']):
     for restr in filters:
         if '=' not in restr:
             raise ValueError(
@@ -170,54 +137,38 @@ def check_attr(attr, filters):
     return True
 
 
-def db_query_tad(db, ranked, chrom, table='features', featuretype='gene', filters=[]):
-    ranked = generate_query_tad(ranked, chrom=chrom, table=table, featuretype=featuretype)
-    select = [
-        'chrom', 'start', 'end', 'gene_name', 'gene_id',
-        'gene_type', 'level', 'score', 'abs_score'
-    ]
-    all_df = []
-    for i in range(ranked.shape[0]):
-        _, _, _, score, abs_score, _, _, chrom, table, featuretype, query = ranked.iloc[i]
-        chrom, start, end, attrs = [], [], [], []
-        valid = 0
-        itr = db.execute(query).fetchall()
-        for obj in itr:
-            attr = json.loads(obj['attributes'])
-            if filters:
-                if not check_attr(attr, filters): continue
-            chrom.append(obj['seqid'])
-            start.append(obj['start'])
-            end.append(obj['end'])
-            attrs.append(attr)
-            valid += 1
-        if valid:
-            info = pd.DataFrame({
-                'chrom': chrom, 'start': start, 'end': end
-            })
-            attrs = pd.DataFrame(merge_attr(attrs))
-            res = pd.concat([info, attrs], axis=1)
-            res['score'] = score
-            res['abs_score'] = abs_score
-            res = res[select]
-            all_df.append(res)
-    if all_df:
-        res = pd.concat(all_df, axis=0)
-        res = res.groupby([
-            'chrom', 'start', 'end', 'gene_name', 'gene_id', 'gene_type', 'level'
-        ], as_index=False).agg({
-            'score': 'sum', 'abs_score': 'sum'
-        }).sort_values(by=['abs_score'], ignore_index=True, ascending=False)
-        valid = res.shape[0]
-        print(f'{ranked.shape[0]} databse query completed with {valid} match(es)')
+def db_query(db, chrom, featuretype='gene', filters=[]):
+    query = ' '.join([
+        'SELECT seqid, start, end, attributes',
+        'FROM features',
+        f'WHERE seqid = "chr{chrom}" AND featuretype = "{featuretype}"'
+    ])
+    itr = db.execute(query).fetchall()
+    seqid, start, end, gene_name, gene_id = [], [], [], [], []
+    valid = 0
+    info = None
+    for obj in itr:
+        attr = json.loads(obj['attributes'])
+        if not check_attr(attr): continue
+        seqid.append(obj['seqid'])
+        start.append(obj['start'])
+        end.append(obj['end'])
+        gene_name.append(attr['gene_name'][0])
+        gene_id.append(attr['gene_id'][0])
+        valid += 1
+    if valid:
+        info = pd.DataFrame({
+            'chrom': seqid, 'start': start, 'end': end, 
+            'gene_name': gene_name, 'gene_id': gene_id
+        })
+        print(f'databse query completed with {valid} match(es)')
     else:
-        res, valid = None, 0
         warnings.warn(
             'No match found. Please consider expanding your search by changing the filters',
             RuntimeWarning
         )
-    
-    return res, valid
+
+    return valid, info
 
 
 def parse_res(row):

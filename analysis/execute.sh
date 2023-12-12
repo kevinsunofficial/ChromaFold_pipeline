@@ -45,16 +45,14 @@ do
     then
         time python pipeline.py --input_dir /data/leslie/suny4/processed_input/ \
             --pred_dir /data/leslie/suny4/predictions/chromafold/ \
-            --ct $samplex --chrom $chrom --min_dim 10 --max_dim 90 --num_dim 25 --close 10 \
-            --filters gene_type=protein_coding \
+            --ct $samplex --chrom $chrom --filters gene_type=protein_coding \
             --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
             --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
             --num_plot 10 --out_dir "/data/leslie/suny4/pipeline_result/${samplex}"
     else
         time python pipeline.py --input_dir /data/leslie/suny4/processed_input/ \
             --pred_dir /data/leslie/suny4/predictions/chromafold/ \
-            --ct $samplex $sampley --chrom $chrom --min_dim 10 --max_dim 90 --num_dim 25 --close 10 \
-            --filters gene_type=protein_coding \
+            --ct $samplex $sampley --chrom $chrom --filters gene_type=protein_coding \
             --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
             --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
             --num_plot 10 --out_dir "/data/leslie/suny4/pipeline_result/${samplex}_${sampley}"

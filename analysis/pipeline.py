@@ -94,14 +94,8 @@ def single_significance(args):
     ct = args.ct[0]
     chrom = args.chrom
 
-    min_dim = args.min_dim
-    max_dim = args.max_dim
-    num_dim = args.num_dim
-    close = args.close
-
     db_file = args.db_file
     gtf_file = args.gtf_file
-    table = args.table
     featuretype = args.featuretype
     filters = args.filters
     
@@ -118,20 +112,20 @@ def single_significance(args):
     pred = load_pred(pred_dir, ct, chrom)
     data = [ctcf, atac, scatac, metacell, pred]
 
-    print('Calculating TADs...')
-    coords = get_tad_coords(pred, min_dim=min_dim, max_dim=max_dim, num_dim=num_dim, close=close)
-    ranked = rank_coords(pred, coords)
-
     print('Querying database...')
     db = load_database(db_file, gtf_file)
-    res, numvalid = db_query_tad(db, ranked, chrom=chrom, table=table, featuretype=featuretype, filters=filters)
+    numvalid, res = db_query(db, chrom, featuretype=featuretype, filters=filters)
 
     print('Calculation and query is completed.\n\nGenerating results...')
-    
-    print('Writing BEDPE files...')
-    create_bedpe(args, ct, pred)
 
     if numvalid:
+        print('Calculating scores...')
+        res = score_genes(pred, res)
+
+        print('Calculation and query is completed.\n\nGenerating results...')
+        print('Writing BEDPE files...')
+        create_bedpe(args, ct, pred)
+
         query_dir = osp.join(out_dir, 'query')
         if not osp.exists(query_dir):
             os.makedirs(query_dir)
@@ -156,14 +150,8 @@ def pairwise_significance(args):
     ctc = None if len(args.ct) == 2 else args.ct[-1] # control
     chrom = args.chrom
 
-    min_dim = args.min_dim
-    max_dim = args.max_dim
-    num_dim = args.num_dim
-    close = args.close
-
     db_file = args.db_file
     gtf_file = args.gtf_file
-    table = args.table
     featuretype = args.featuretype
     filters = args.filters
 
@@ -189,21 +177,19 @@ def pairwise_significance(args):
     pred_diff = pred1 - pred2
     data = [ctcf, atac1, atac2, scatac1, scatac2, metacell1, metacell2, pred1, pred2, pred_diff]
 
-    print('Calculating TADs similarity...')
-    coords = get_tad_coords(pred_diff, min_dim=min_dim, max_dim=max_dim, num_dim=num_dim, close=close)
-    ranked = rank_coords(pred_diff, coords)
-
     print('Querying database...')
     db = load_database(db_file, gtf_file)
-    res, numvalid = db_query_tad(db, ranked, chrom=chrom, table=table, featuretype=featuretype, filters=filters)
-
-    print('Calculation and query is completed.\n\nGenerating results...')
-    
-    print('Writing BEDPE files...')
-    create_bedpe(args, ct1, pred1)
-    create_bedpe(args, ct2, pred2)
+    numvalid, res = db_query(db, chrom, featuretype=featuretype, filters=filters)
 
     if numvalid:
+        print('Calculating scores...')
+        res = score_genes(pred_diff, res)
+
+        print('Calculation and query is completed.\n\nGenerating results...')
+        print('Writing BEDPE files...')
+        create_bedpe(args, ct1, pred1)
+        create_bedpe(args, ct2, pred2)
+
         query_dir = osp.join(out_dir, 'query')
         if not osp.exists(query_dir):
             os.makedirs(query_dir)
@@ -235,14 +221,8 @@ if __name__=='__main__':
     parser.add_argument('--ct', required=True, type=str, nargs='+', help='Full cell type names, can take 1, 2, or 3 cts')
     parser.add_argument('--chrom', required=True, type=str, help='Chromosome number')
 
-    parser.add_argument('--min_dim', required=False, type=int, default=10, help='Minimum window size for running Region TopDom, default=10')
-    parser.add_argument('--max_dim', required=False, type=int, default=100, help='Maximum window size for running Region TopDom, default=100')
-    parser.add_argument('--num_dim', required=False, type=int, default=25, help='Number of window size for running Region TopDom, default=25')
-    parser.add_argument('--close', required=False, type=int, default=5, help='Margin of error allowed for merging coordinates, default=5')
-
     parser.add_argument('--db_file', required=True, type=str, help='Database file directory')
     parser.add_argument('--gtf_file', required=True, type=str, default='gencode.vM10.basic.annotation.gtf',help='GTF file directory')
-    parser.add_argument('--table', required=False, type=str, default='features', help='Table name for db query')
     parser.add_argument('--featuretype', required=False, type=str, default='gene', help='Feature types to select for db query')
     parser.add_argument('--filters', required=False, nargs='+', default=[], help='Attribute filters in database query, input each filter with \"key=value\" format')
 
