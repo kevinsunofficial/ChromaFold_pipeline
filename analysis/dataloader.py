@@ -78,10 +78,7 @@ def load_multiome(input_dir, ct, chrom, start=None, genome='mm10'):
 
 
 def set_diagonal(mat, value=0):
-    if mat.shape[0] - mat.shape[1]:
-        raise ValueError(
-            'Matrix is not square ({}, {})'.format(mat.shape[0], mat.shape[1])
-        )
+    assert mat.shape[0] == mat.shape[1], f'Matrix is not square {mat.shape}'
     l = mat.shape[0]
     idx = np.arange(l)
     mat[idx[:-1], idx[1:]], mat[idx[1:], idx[:-1]] = value, value
@@ -122,16 +119,10 @@ def load_database(db_file, gtf_file):
 
 def check_attr(attr, filters=['gene_type=protein_coding']):
     for restr in filters:
-        if '=' not in restr:
-            raise ValueError(
-                'Cannot parse filter {}. Please doublecheck the input'.format(restr)
-            )
+        assert '=' in restr, f'Cannot parse filter {restr}. Please doublecheck the input'
         k, v = restr.strip().split('=')
         k, v = k.strip(), v.strip()
-        if k not in attr:
-            raise ValueError(
-                'Cannot find key {} in attributes. Please doublecheck the input'.format(k)
-            )
+        assert k in attr, f'Cannot find key {k} in attributes. Please doublecheck the input'
         if attr[k][0] != v: return False
     
     return True
@@ -141,7 +132,9 @@ def db_query(db, chrom, featuretype='gene', filters=[]):
     query = ' '.join([
         'SELECT seqid, start, end, attributes',
         'FROM features',
-        f'WHERE seqid = "chr{chrom}" AND featuretype = "{featuretype}"'
+        f'WHERE seqid = "chr{chrom}"',
+        f'AND featuretype = "{featuretype}"',
+        'AND end - start >= 10000'
     ])
     itr = db.execute(query).fetchall()
     seqid, start, end, gene_name, gene_id = [], [], [], [], []

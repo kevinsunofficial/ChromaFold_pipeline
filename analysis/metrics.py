@@ -32,15 +32,12 @@ def quantile_normalize(preds, offset=2):
 
 
 def topdom(pred_mat, window_size=10, cutoff=None):
-    if pred_mat.shape[0]-pred_mat.shape[1]:
-        raise ValueError(
-            'Matrix is not square ({}, {})'.format(pred_mat.shape[0], pred_mat.shape[1])
-        )
+    assert pred_mat.shape[0] == pred_mat.shape[1], f'Matrix is not square {pred_mat.shape}'
     pad_mat = np.pad(pred_mat, window_size, mode='constant', constant_values=np.nan)
     dim = pad_mat.shape[0]
     signal = np.array([
         np.nanmean(pad_mat[i-window_size:i, i:i+window_size]) for i in range(dim)
-    ][window_size+1: -window_size])
+    ][window_size+1:-window_size])
     if cutoff is not None:
         signal[signal<cutoff] = cutoff
 
@@ -55,10 +52,15 @@ def score_genes(pred, res):
         start, end = res.iloc[i].start, res.iloc[i].end
         start, end = start // int(1e4), end // int(1e4)
         stripe = []
-        for i in range(max(200, start - 10), min(end + 11, l - 200)):
-            left, right = pred[i-200:i, i], pred[i, i+1:i+201]
-            left_pad = np.pad(left, (200 - len(left), 0), 'empty')
-            right_pad = np.pad(right, (0, 200 - len(right)), 'empty')
+
+        first, last = max(0, start - 10), min(start + 11, l)
+        for i in range(first, last):
+            left_margin = (max(0, 200 - i), i - first)
+            left = pred[max(0, i - 200):first, i]
+            left_pad = np.pad(left, left_margin, 'empty')
+            right_margin = (0, max(0, i + 201 - l))
+            right = pred[i, i+1:min(i + 201, l)]
+            right_pad = np.pad(right, right_margin, 'empty')
             stripe.append(np.array([left_pad, right_pad]).flatten())
         stripe = np.array(stripe)
         stripe[(stripe < 1) & (stripe > -1)] = 0
@@ -97,10 +99,7 @@ def merge_bedpe(coords, bedpe_margin):
 
 
 def parse_bedpe(pred, bedpe_thresh=99., bedpe_margin=None):
-    if pred.shape[0]-pred.shape[1]:
-        raise ValueError(
-            'Dimension mismatch ({}, {})'.format(pred.shape[0], pred.shape[1])
-        )
+    assert pred.shape[0] == pred.shape[1], f'Matrix is not square {pred.shape}'
     min_len = len(np.diag(pred, 199))
     all_zval = np.concatenate([np.diag(pred, i)[:min_len] for i in range(1, 200)])
     bin_pred = all_zval.reshape(-1, min_len)
