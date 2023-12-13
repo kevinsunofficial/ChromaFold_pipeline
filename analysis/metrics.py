@@ -51,9 +51,10 @@ def score_genes(pred, res):
     for i in range(res.shape[0]):
         start, end = res.iloc[i].start, res.iloc[i].end
         start, end = start // int(1e4), end // int(1e4)
+        perimeter = int(np.sqrt(end - start))
         stripe = []
 
-        first, last = max(0, start - 10), min(start + 11, l)
+        first, last = max(0, start - perimeter), min(end + 1 + perimeter, l)
         for i in range(first, last):
             left_margin = (max(0, 200 - i), i - first)
             left = pred[max(0, i - 200):first, i]
