@@ -51,22 +51,22 @@ def score_genes(pred, res):
     for i in range(res.shape[0]):
         start, end = res.iloc[i].start, res.iloc[i].end
         start, end = start // int(1e4), end // int(1e4)
-        perimeter = int(np.sqrt(end - start))
+        perimeter = int(np.log(end - start)) + 5
         stripe = []
 
         first, last = max(0, start - perimeter), min(end + 1 + perimeter, l)
-        for i in range(first, last):
-            left_margin = (max(0, 200 - i), i - first)
-            left = pred[max(0, i - 200):first, i]
-            left_pad = np.pad(left, left_margin, 'empty')
-            right_margin = (0, max(0, i + 201 - l))
-            right = pred[i, i+1:min(i + 201, l)]
-            right_pad = np.pad(right, right_margin, 'empty')
+        for j in range(first, last):
+            left_margin = (max(0, 200 - j), min(j - first, 200))
+            left = pred[max(0, j - 200):first, j]
+            left_pad = np.pad(left, left_margin)
+            right_margin = (0, max(0, j + 201 - l))
+            right = pred[j, j+1:min(j + 201, l)]
+            right_pad = np.pad(right, right_margin)
             stripe.append(np.array([left_pad, right_pad]).flatten())
         stripe = np.array(stripe)
         stripe[(stripe < 1) & (stripe > -1)] = 0
-        scores.append(np.nansum(stripe))
-        abs_scores.append(np.nansum(np.abs(stripe)))
+        scores.append(np.sum(stripe))
+        abs_scores.append(np.sum(np.abs(stripe)))
     
     res['score'] = scores
     res['abs_score'] = abs_scores
