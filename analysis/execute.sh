@@ -1,10 +1,11 @@
 #!/bin/bash -l
 
-while getopts x:y:s:e: flag
+while getopts x:y:c:s:e: flag
 do
     case "${flag}" in
         x) samplex=${OPTARG};;
         y) sampley=${OPTARG};;
+        c) control=${OPTARG};;
         s) start=${OPTARG};;
         e) end=${OPTARG};;
     esac
@@ -50,12 +51,22 @@ do
             --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
             --num_plot 10 --out_dir "/data/leslie/suny4/pipeline_result/${samplex}"
     else
-        time python pipeline.py --input_dir /data/leslie/suny4/processed_input/ \
-            --pred_dir /data/leslie/suny4/predictions/chromafold/ \
-            --ct $samplex $sampley --chrom $chrom --filters gene_type=protein_coding \
-            --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
-            --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
-            --num_plot 10 --out_dir "/data/leslie/suny4/pipeline_result/${samplex}_${sampley}"
+        if [[ "$control" == "none" ]]
+        then
+            time python pipeline.py --input_dir /data/leslie/suny4/processed_input/ \
+                --pred_dir /data/leslie/suny4/predictions/chromafold/ \
+                --ct $samplex $sampley --chrom $chrom --filters gene_type=protein_coding \
+                --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
+                --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
+                --num_plot 10 --out_dir "/data/leslie/suny4/pipeline_result/${samplex}_${sampley}"
+        else
+            time python pipeline.py --input_dir /data/leslie/suny4/processed_input/ \
+                --pred_dir /data/leslie/suny4/predictions/chromafold/ \
+                --ct $samplex $sampley $control --chrom $chrom --filters gene_type=protein_coding \
+                --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
+                --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
+                --num_plot 10 --out_dir "/data/leslie/suny4/pipeline_result/${samplex}_${sampley}_${control}"
+        fi
     fi
 done
 

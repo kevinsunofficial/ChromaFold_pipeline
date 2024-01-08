@@ -103,6 +103,7 @@ def load_pred(pred_dir, ct, chrom, pred_len=200, avg_stripe=True):
         ))[:chrom_len+pred_len, :chrom_len+pred_len])/2
     
     pred = set_diagonal(summed[pred_len:-pred_len, pred_len:-pred_len])
+    # pred = summed[pred_len:-pred_len, pred_len:-pred_len]
 
     return pred
 

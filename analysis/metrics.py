@@ -15,18 +15,21 @@ def quantile_normalize(preds, offset=2):
     N, H, W = preds.shape
     assert H == W, f'Matrix is not square ({H}, {W})'
     pred_diag = np.column_stack((
-        np.array([
-            np.pad(np.diagonal(pred, offset=i), (0, i), 'constant') for i in range(offset, 200)
-        ]).T.ravel() for pred in preds
+        np.concatenate([
+            np.diag(pred, i) for i in range(offset, 200)
+        ]) for pred in preds
     ))
     df, df_mean = pd.DataFrame(pred_diag), pd.DataFrame(np.sort(pred_diag, axis=0)).mean(axis=1)
     df_mean.index += 1
     pred_diag_qn = df.rank(method='min').stack().astype(int).map(df_mean).unstack().values
-    pred_diag_qn = pred_diag_qn.T.reshape(N, -1, 200-offset)
+    pred_diag_qn = pred_diag_qn.T.reshape(N, -1)
     preds_qn = np.zeros_like(preds)
+    current = 0
     for i in range(offset, 200):
         idx = np.arange(H - i, dtype=int)
-        preds_qn[:, idx, idx+i] = preds_qn[:, idx+i, idx] = pred_diag_qn[:, :H-i, i-offset]
+        l = np.diagonal(preds_qn, offset=i, axis1=1, axis2=2).shape[1]
+        preds_qn[:, idx, idx+i] = preds_qn[:, idx+i, idx] = pred_diag_qn[:, current:current+l]
+        current += l
     
     return preds_qn
 
