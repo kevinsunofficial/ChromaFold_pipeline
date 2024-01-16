@@ -25,7 +25,7 @@ def rotate_coord(n):
     return A
 
 
-class SinglePlotGenerator():
+class SinglePlot:
 
     def __init__(self, fig_dir, bedpe_dir, gtf_file, chrom, 
                  ct, pred, ctcf=None, atac=None, scatac=None):
@@ -38,10 +38,11 @@ class SinglePlotGenerator():
         self.ctcf = ctcf
         self.atac = atac
         self.scatac = scatac
+        self.use_fig_dir = self.fig_dir
 
     def plot_ctcf(self, start, gene, locstart, locend):
         fig, ax = plt.subplots(figsize=(8, 2))
-        ax.plot(self.ctcf)
+        ax.plot(self.ctcf[start * 200:(start + 700) * 200])
         plt.xlim(300*200, 500*200)
         plt.ylim(2.5, 3.5)
         tickloc = ax.get_xticks()
@@ -51,12 +52,12 @@ class SinglePlotGenerator():
         plt.xlabel('chr{} (10kb)'.format(self.chrom))
         plt.ylabel('CTCF motif score')
         plt.axvspan(locstart*200, locend*200, alpha=0.3, color='red')
-        plt.savefig(osp.join(self.fig_dir, 'chr{}_{}_ctcf.png'.format(self.chrom, gene)))
+        plt.savefig(osp.join(self.use_fig_dir, 'chr{}_{}_ctcf.png'.format(self.chrom, gene)))
         plt.clf()
 
     def plot_atac(self, start, gene, locstart, locend):
         fig, ax = plt.subplots(figsize=(8, 2))
-        ax.plot(self.atac)
+        ax.plot(self.atac[start * 200:(start + 700) * 200])
         plt.xlim(300*200, 500*200)
         tickloc = ax.get_xticks()
         ticklabel = np.linspace(start+300, start+500, num=len(tickloc), dtype=int).tolist()
@@ -65,7 +66,7 @@ class SinglePlotGenerator():
         plt.xlabel('chr{} (10kb)'.format(self.chrom))
         plt.ylabel('ATAC-seq signal')
         plt.axvspan(locstart*200, locend*200, alpha=0.3, color='red')
-        plt.savefig(osp.join(self.fig_dir, 'chr{}_{}_atac.png'.format(self.chrom, gene)))
+        plt.savefig(osp.join(self.use_fig_dir, 'chr{}_{}_atac.png'.format(self.chrom, gene)))
         plt.clf()
 
     def plot_scatac(self, start, gene, locstart, locend):
@@ -89,7 +90,7 @@ class SinglePlotGenerator():
         plt.xticks(tickloc, ticklabel)
         plt.title('chr{} - {} ({})'.format(self.chrom, gene, self.ct), fontsize=15)
         plt.ylabel('Co-accessibility')
-        plt.savefig(osp.join(self.fig_dir, 'chr{}_{}_scatac.png'.format(self.chrom, gene)))
+        plt.savefig(osp.join(self.use_fig_dir, 'chr{}_{}_scatac.png'.format(self.chrom, gene)))
         plt.clf()
 
     def plot_pred(self, start, gene, locstart, locend):
@@ -114,7 +115,7 @@ class SinglePlotGenerator():
         plt.xticks(tickloc, ticklabel)
         plt.title('chr{} - {} ({})'.format(self.chrom, gene, self.ct), fontsize=12)
         plt.ylabel('Prediction Z-score')
-        plt.savefig(osp.join(self.fig_dir, 'chr{}_{}_pred.png'.format(self.chrom, gene)))
+        plt.savefig(osp.join(self.use_fig_dir, 'chr{}_{}_pred.png'.format(self.chrom, gene)))
         plt.clf()
 
     def plot_track(self, start, gene, locstart, locend):
@@ -130,17 +131,17 @@ class SinglePlotGenerator():
 
         frame = XAxis() + gtfs + hl + Spacer(0.5) + arc + hl
         test_range = f'chr{self.chrom}:{(start+300)*200*50}-{(start+500)*200*50}'
-        frame.plot(test_range).savefig(osp.join(self.fig_dir, f'{self.ct}_chr{self.chrom}_{gene}_bedpe.png'))
+        frame.plot(test_range).savefig(osp.join(self.use_fig_dir, f'{self.ct}_chr{self.chrom}_{gene}_bedpe.png'))
         plt.clf()
 
 
-class PairPlotGenerator(SinglePlotGenerator):
+class PairPlot(SinglePlot):
 
     def __init__(self, fig_dir, bedpe_dir, gtf_file, chrom, 
                  ct, ct2, pred, pred2, pred_diff,
                  ctcf=None, atac=None, scatac=None,
                  atac2=None, scatac2=None):
-        super(SinglePlotGenerator).__init__(
+        super().__init__(
             fig_dir, bedpe_dir, gtf_file, chrom, 
             ct, pred, ctcf, atac, scatac)
         self.ct2 = ct2
@@ -148,6 +149,7 @@ class PairPlotGenerator(SinglePlotGenerator):
         self.pred_diff = pred_diff
         self.atac2 = atac2
         self.scatac2 = scatac2
+        self.use_fig_dir = self.fig_dir
 
     def plot_ctcf(self, start, gene, locstart, locend):
         return super().plot_ctcf(start, gene, locstart, locend)
@@ -164,7 +166,7 @@ class PairPlotGenerator(SinglePlotGenerator):
         cts = [self.ct, self.ct2, 'Difference']
         for i in range(3):
             ax, atac, ct = axs[i], atacs[i], cts[i]
-            ax.plot(atac)
+            ax.plot(atac[start * 200:(start + 700) * 200])
             ax.title.set_text(ct)
             ax.set_xlim(300*200, 500*200)
             ax.set_xticklabels(np.linspace(start+300, start+500, num=len(ax.get_xticks()), dtype=int))
@@ -172,7 +174,7 @@ class PairPlotGenerator(SinglePlotGenerator):
         
         axs[1].set_ylabel('ATAC-seq signal')
         plt.xlabel('chr{} (10kb)'.format(self.chrom))
-        plt.savefig(osp.join(self.fig_dir, 'chr{}_{}_atac.png'.format(self.chrom, gene)))
+        plt.savefig(osp.join(self.use_fig_dir, 'chr{}_{}_atac.png'.format(self.chrom, gene)))
         plt.clf()
 
     def plot_scatac(self, start, gene, locstart, locend):
@@ -205,7 +207,7 @@ class PairPlotGenerator(SinglePlotGenerator):
         
         fig.colorbar(img, ax=axs, shrink=1/2)
         plt.xlabel('chr{} (10kb)'.format(self.chrom))
-        plt.savefig(osp.join(self.fig_dir, 'chr{}_{}_scatac.png'.format(self.chrom, gene)))
+        plt.savefig(osp.join(self.use_fig_dir, 'chr{}_{}_scatac.png'.format(self.chrom, gene)))
         plt.clf()
 
     def plot_pred(self, start, gene, locstart, locend):
@@ -242,6 +244,51 @@ class PairPlotGenerator(SinglePlotGenerator):
             plt.colorbar(img, ax=ax)
             
         plt.xlabel('chr{} (10kb)'.format(self.chrom))
-        plt.savefig(osp.join(self.fig_dir, 'chr{}_{}_pred.png'.format(self.chrom, gene)))
+        plt.savefig(osp.join(self.use_fig_dir, 'chr{}_{}_pred.png'.format(self.chrom, gene)))
         plt.clf()
+
+
+class PairGenePlotGenerator(PairPlot):
+
+    def __init__(self, gene_scores, fig_dir, bedpe_dir, gtf_file, chrom, 
+                 ct, ct2, pred, pred2, pred_diff,
+                 ctcf=None, atac=None, scatac=None,
+                 atac2=None, scatac2=None):
+        super().__init__(
+            fig_dir, bedpe_dir, gtf_file, chrom, 
+            ct, ct2, pred, pred2, pred_diff,
+            ctcf, atac, scatac, atac2, scatac2)
+        self.gene_scores = gene_scores
+        self.use_fig_dir = self.fig_dir
+
+    def plot_gene(self, index=None, gene=None):
+        assert index is not None or gene is not None, \
+            'Either index or gene name is required, both are missing'
+        if index is None:
+            indices = self.gene_scores.index[self.gene_scores.gene_name==gene].tolist()
+            assert indices, f'{gene} does not exist in query result'
+            index = indices[0]
+        if gene is None:
+            gene = self.gene_scores.iloc[index].gene_name
+        actual_start = self.gene_scores.iloc[index].start
+        actual_end = self.gene_scores.iloc[index].end
+        rank = index + 1
+        self.use_fig_dir = osp.join(self.fig_dir, f'{rank}_{gene}')
+        if not osp.exists(self.use_fig_dir):
+            os.makedirs(self.use_fig_dir)
         
+        start = max(0, actual_start // 10**4 - 400)
+        locstart, locend = actual_start / 1e4 - start, actual_end / 1e4 - start
+
+        if self.ctcf is not None:
+            super().plot_ctcf(start, gene, locstart, locend)
+        if self.atac is not None and self.atac2 is not None:
+            super().plot_atac(start, gene, locstart, locend)
+        if self.scatac is not None and self.scatac2 is not None:
+            raise NotImplementedError
+
+        super().plot_pred(start, gene, locstart, locend)
+    
+    def plot_genes(self, numplot):
+        for i in tqdm(range(numplot)):
+            self.plot_gene(index=i)

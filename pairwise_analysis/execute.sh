@@ -54,13 +54,13 @@ do
     else
         if [[ "$control" == "none" ]]
         then
-            time python pipeline.py --input_dir /data/leslie/suny4/processed_input/ \
+            time python main.py --root_dir /data/leslie/suny4/processed_input/ \
                 --pred_dir /data/leslie/suny4/predictions/chromafold/ \
                 --ct $samplex $sampley --chrom $chrom --filters gene_type=protein_coding \
                 --annotation /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation \
                 --out_dir "/data/leslie/suny4/pipeline_result/${samplex}_${sampley}"
         else
-            time python pipeline.py --input_dir /data/leslie/suny4/processed_input/ \
+            time python main.py --root_dir /data/leslie/suny4/processed_input/ \
                 --pred_dir /data/leslie/suny4/predictions/chromafold/ \
                 --ct $samplex $sampley $control --chrom $chrom --filters gene_type=protein_coding \
                 --annotation /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation \

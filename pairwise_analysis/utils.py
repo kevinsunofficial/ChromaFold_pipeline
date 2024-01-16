@@ -49,9 +49,10 @@ def generate_query(chrom, start=None, end=None, length=None, featuretype=None):
         where_clause.append(f'end - start >= {length}')
     if featuretype is not None:
         where_clause.append(f'featuretype = "{featuretype}"')
-    clause.append('WHERE ' + ' AND '.join(where_clause))
-
-    return ' '.join(clause)
+    clause.append(' AND '.join(where_clause))
+    query = ' '.join(clause)
+    
+    return query
     
 
 def check_attr(attr, filters=[]):
@@ -66,7 +67,7 @@ def check_attr(attr, filters=[]):
     return True
 
 
-def db_query(db, chrom, start=None, end=None, length=None, featuretype='gene', 
+def db_query(db, chrom, start=None, end=None, length=10000, featuretype='gene', 
              filters=['gene_type=protein_coding']):
     query = generate_query(chrom, start, end, length, featuretype)
     itr = db.execute(query).fetchall()
