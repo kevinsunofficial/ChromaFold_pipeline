@@ -38,12 +38,12 @@ def gene_analysis(args):
 
     if numvalid:
         analyzer = GeneAnalyzer(pred1, pred2, pred_diff, genes)
-        gene_scores = analyzer.score_region() # it is very unlikely that this is empty
+        gene_score = analyzer.score_region() # it is very unlikely that this is empty
         
         query_dir = osp.join(args.out_dir, 'query')
         if not osp.exists(query_dir):
             os.makedirs(query_dir)
-        gene_scores.to_csv(
+        gene_score.to_csv(
             osp.join(query_dir, f'chr{args.chrom}_significant_genes.csv'),
             header=True, index=False)
 
@@ -56,7 +56,7 @@ def gene_analysis(args):
         gtf_file = f'{args.annotation}.gtf'
 
         plotgenerator = PairGenePlotGenerator(
-            gene_scores,
+            gene_score,
             fig_dir, bedpe_dir, gtf_file, args.chrom, 
             ct1, ct2, pred1, pred2, pred_diff,
             ctcf=loader.load_ctcf(), atac=loader.load_atac(ct1), scatac=None,
@@ -66,11 +66,37 @@ def gene_analysis(args):
         plotgenerator.plot_genes(args.numplot)
         for gene in args.extraplot:
             plotgenerator.plot_gene(gene=gene)
-
     else:
         print('No valid query result')
     
-    return gene_scores
+    return gene_score
+
+
+def tad_analysis(args):
+    loader = DataLoader(args.root_dir, args.pred_dir, args.chrom, args.annotation)
+
+    ct1, ct2 = args.ct[:2]
+    ctc = None if len(args.ct) == 2 else args.ct[-1]
+
+    pred1, pred2 = loader.load_pred(ct1), loader.load_pred(ct2)
+    predc = None if ctc is None else loader.load_pred(ctc)
+
+    allpred = np.array([pred1, pred2]) if predc is None else np.array([pred1, pred2, predc])
+    preds_qn = quantile_normalize(allpred)
+    pred1, pred2 = preds_qn[0], preds_qn[1]
+    pred_diff = pred1 - pred2
+
+    vertex = get_tad_vertex(pred_diff)  # it is very unlikely that this is empty
+
+    analyzer = TADAnalyzer(pred1, pred2, pred_diff, vertex)
+    vertex_score = analyzer.score_region()  # it is very unlikely that this is empty
+
+    query_dir = osp.join(args.out_dir, 'query')
+    if not osp.exists(query_dir):
+        os.makedirs(query_dir)
+    vertex_score.to_csv(
+        osp.join(query_dir, f'chr{args.chrom}_significant_TADs.csv'),
+        header=True, index=False)
 
 
 

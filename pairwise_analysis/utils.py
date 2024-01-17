@@ -5,6 +5,7 @@ import pandas as pd
 import scipy
 import torch
 from scipy.sparse import csr_matrix
+from scipy.signal import find_peaks
 import pickle
 import gffutils
 from tqdm import tqdm
@@ -36,6 +37,55 @@ def quantile_normalize(preds, offset=2):
         current += l
     
     return preds_qn
+
+
+def topdom(matrix, window_size, cutoff=None):
+    assert matrix.shape[0] == matrix.shape[1], f'Matrix is not square {matrix.shape}'
+    pad_mat = np.pad(matrix, window_size, mode='constant', constant_values=np.nan)
+    dim = pad_mat.shape[0]
+    signal = np.array([
+        np.nanmean(pad_mat[i-window_size:i, i:i+window_size]) for i in range(dim)
+    ][window_size+1:-window_size])
+    if cutoff is not None:
+        signal[signal < cutoff] = cutoff
+    
+    return signal
+
+
+def get_tad_vertex(pred, min_dim=10, max_dim=90, num_dim=25, close=15):
+    sizes = np.linspace(max(1, min_dim), min(max_dim, 100), num=num_dim, dtype=int)
+    x, y = [], []
+    for i, s in enumerate(tqdm(sizes)):
+        signal = topdom(pred, s)
+        peak = find_peaks(signal, prominence=0.25, height=0.1)[0]
+        trough = find_peaks(-signal, prominence=0.25, height=0.1)[0]
+        vertex = np.concatenate((peak, trough), axis=None)
+        x.extend((vertex - s).tolist())
+        y.extend((vertex + s).tolist())
+    
+    raw_vertex = pd.DataFrame({'x': x, 'y': y}).sort_values(['x', 'y']).reset_index(drop=True)
+    i, current = 0, None
+    merged = []
+
+    while i < raw_vertex.shape[0]:
+        if not merged:
+            merged.append(raw_vertex.iloc[i].values)
+        else:
+            current = raw_vertex.iloc[i].values
+            diff = np.abs(merged[-1] - current)
+            if np.sum(diff) <= close:
+                merged[-1] = np.array([
+                    min(merged[-1][0], current[0]),
+                    max(merged[-1][1], current[1])
+                ])
+            else:
+                merged.append(current[:])
+        i += 1
+
+    merged = np.array(merged)
+    merged_vertex = pd.DataFrame({'start': merged[:, 0], 'end': merged[:, 1]})
+
+    return merged_vertex
 
 
 def generate_query(chrom, start=None, end=None, length=None, featuretype=None):

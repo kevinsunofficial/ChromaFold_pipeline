@@ -101,9 +101,9 @@ class GeneAnalyzer(Analyzer):
 
 class TADAnalyzer(Analyzer):
 
-    def __init__(self, pred1, pred2, pred_diff, coords):
+    def __init__(self, pred1, pred2, pred_diff, vertex):
         super().__init__(pred1, pred2, pred_diff)
-        self.coords = coords
+        self.vertex = vertex
 
     def get_region(self, pred, start, end):
         region = pred[start:end + 1, start:end + 1]
@@ -113,8 +113,8 @@ class TADAnalyzer(Analyzer):
     
     def score_region(self):
         neglog10pval, changes = [], []        
-        for i in tqdm(range(self.coords.shape[1])):
-            start, end, width = self.coords[:, i]
+        for i in tqdm(range(self.vertex.shape[0])):
+            start, end = self.vertex.iloc[i]
             region = self.get_region(self.pred, start, end)
             region1 = self.get_region(self.pred1, start, end)
             region2 = self.get_region(self.pred2, start, end)
@@ -123,13 +123,13 @@ class TADAnalyzer(Analyzer):
             neglog10pval.append(pval)
             changes.append(change)
         
-        coords_core = self.coords.copy()
-        coords_core['neglog10pval'] = neglog10pval
-        coords_core['changes'] = changes
-        coords_core = coords_core[
-            coords_core.neglog10pval.notna() & coords_core.changes.notna()
+        vertex_score = self.vertex.copy()
+        vertex_score['neglog10pval'] = neglog10pval
+        vertex_score['changes'] = changes
+        vertex_score = vertex_score[
+            vertex_score.neglog10pval.notna() & vertex_score.changes.notna()
         ].sort_values(
             ['neglog10pval', 'changes'], ascending=False
         ).reset_index(drop=True)
 
-        return coords_core
+        return vertex_score
