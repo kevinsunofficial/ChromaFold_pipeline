@@ -123,13 +123,13 @@ class TADAnalyzer(Analyzer):
             neglog10pval.append(pval)
             changes.append(change)
         
-        vertex_score = self.vertex.copy()
-        vertex_score['neglog10pval'] = neglog10pval
-        vertex_score['changes'] = changes
-        vertex_score = vertex_score[
-            vertex_score.neglog10pval.notna() & vertex_score.changes.notna()
+        tad_score = self.vertex.copy()
+        tad_score['neglog10pval'] = neglog10pval
+        tad_score['changes'] = changes
+        tad_score = tad_score[
+            tad_score.neglog10pval.notna() & tad_score.changes.notna()
         ].sort_values(
             ['neglog10pval', 'changes'], ascending=False
         ).reset_index(drop=True)
 
-        return vertex_score
+        return tad_score

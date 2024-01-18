@@ -148,4 +148,36 @@ def db_query(db, chrom, start=None, end=None, length=10000, featuretype='gene',
         )
 
     return valid, info
+
+
+def create_bedpe(pred, chrom, ct, bedpe_dir, bedpe_thresh=99., bedpe_margin=None):
+    assert pred.shape[0] == pred.shape[1], f'Matrix is not square {pred.shape}'
+    min_len = len(np.diag(pred, 199))
+    all_zval = np.concatenate([np.diag(pred, i)[:min_len] for i in range(1, 200)])
+    bin_pred = all_zval.reshape(-1, min_len)
+    bin_mask = (bin_pred.sum(0) < np.percentile(bin_pred.sum(0), 1))
+    zval_cutoff = np.percentile(all_zval, bedpe_thresh) if bedpe_thresh >= 90 else bedpe_thresh
+
+    selected_pred = np.copy(bin_pred)
+    selected_pred[:, bin_mask] = 0
+    indices = np.argwhere(selected_pred > zval_cutoff)
+    scores = selected_pred[selected_pred > zval_cutoff]
+
+    coords = np.column_stack((indices[:, 1], np.array(indices[:, 1] + indices[:, 0] + 1), scores))
+    coords = coords[np.lexsort((coords[:, 2], coords[:, 1], coords[:, 0]))]
+    coords = coords[np.diff(coords)[:, 0] >= 50, :]
+    coords = np.column_stack((coords[:, 0], coords[:, 0], coords[:, 1], coords[:, 1], coords[:, 2]))
+
+    bedpe = []
+
+    for s1, e1, s2, e2, score in coords:
+        line = '{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
+            chrom, int(s1 * 1e4), int(e1 * 1e4), 
+            chrom, int(s2 * 1e4), int(e2 * 1e4),
+            f'chr{chrom}_gene', score, '.', '.'
+        )
+        bedpe.append(line)
     
+    bedpe_file = osp.join(bedpe_dir, f'{ct}_chr{chrom}.bedpe')
+    with open(bedpe_file, 'w') as file:
+        file.writelines(bedpe)

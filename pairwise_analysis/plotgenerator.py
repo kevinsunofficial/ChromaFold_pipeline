@@ -247,10 +247,29 @@ class PairPlot(SinglePlot):
         plt.savefig(osp.join(self.use_fig_dir, 'chr{}_{}_pred.png'.format(self.chrom, gene)))
         plt.clf()
 
+    def plot_track(self, start, gene, locstart, locend):
+        swstr = '0.05+score**2/10'
+        hlstart, hlend = int((locstart + start) * 1e4), int((locend + start) * 1e4)
+        hlregion = [f'chr{self.chrom}:{hlstart}-{hlend}']
+        gtfs = GTF(self.gtf_file, length_ratio_thresh=0.005, fontsize=32, height=5) + Title('GTF Annotation')
+        arc1 = Arcs(
+            osp.join(self.bedpe_dir, f'{self.ct}_chr{self.chrom}.bedpe'),
+            linewidth=None, score_to_width=swstr
+        ) + Inverted() + TrackHeight(8) + Title(f'{self.ct}_chr{self.chrom}:{gene}')
+        arc2 = Arcs(
+            osp.join(self.bedpe_dir, f'{self.ct2}_chr{self.chrom}.bedpe'),
+            linewidth=None, score_to_width=swstr
+        ) + Inverted() + TrackHeight(8) + Title(f'{self.ct2}_chr{self.chrom}:{gene}')
+        hl = HighLights(hlregion, color='red', alpha=0.1)
+
+        frame = XAxis() + gtfs + hl + Spacer(0.5) + arc1 + hl + Spacer(0.5) + arc2 + hl
+        test_range = f'chr{self.chrom}:{(start+300)*200*50}-{(start+500)*200*50}'
+        frame.plot(test_range).savefig(osp.join(self.use_fig_dir, f'chr{self.chrom}_{gene}_bedpe.png'))
+
 
 class PairGenePlotGenerator(PairPlot):
 
-    def __init__(self, gene_scores, fig_dir, bedpe_dir, gtf_file, chrom, 
+    def __init__(self, gene_score, fig_dir, bedpe_dir, gtf_file, chrom, 
                  ct, ct2, pred, pred2, pred_diff,
                  ctcf=None, atac=None, scatac=None,
                  atac2=None, scatac2=None):
@@ -258,20 +277,20 @@ class PairGenePlotGenerator(PairPlot):
             fig_dir, bedpe_dir, gtf_file, chrom, 
             ct, ct2, pred, pred2, pred_diff,
             ctcf, atac, scatac, atac2, scatac2)
-        self.gene_scores = gene_scores
+        self.gene_score = gene_score
         self.use_fig_dir = self.fig_dir
 
     def plot_gene(self, index=None, gene=None):
         assert index is not None or gene is not None, \
             'Either index or gene name is required, both are missing'
         if index is None:
-            indices = self.gene_scores.index[self.gene_scores.gene_name==gene].tolist()
+            indices = self.gene_score.index[self.gene_score.gene_name==gene].tolist()
             assert indices, f'{gene} does not exist in query result'
             index = indices[0]
         if gene is None:
-            gene = self.gene_scores.iloc[index].gene_name
-        actual_start = self.gene_scores.iloc[index].start
-        actual_end = self.gene_scores.iloc[index].end
+            gene = self.gene_score.iloc[index].gene_name
+        actual_start = self.gene_score.iloc[index].start
+        actual_end = self.gene_score.iloc[index].end
         rank = index + 1
         self.use_fig_dir = osp.join(self.fig_dir, f'{rank}_{gene}')
         if not osp.exists(self.use_fig_dir):
@@ -288,7 +307,49 @@ class PairGenePlotGenerator(PairPlot):
             raise NotImplementedError
 
         super().plot_pred(start, gene, locstart, locend)
+        super().plot_track(start, gene, locstart, locend)
     
     def plot_genes(self, numplot):
         for i in tqdm(range(numplot)):
             self.plot_gene(index=i)
+
+
+class PairTADPlotGenerator(PairPlot):
+
+    def __init__(self, tad_score, fig_dir, bedpe_dir, gtf_file, chrom, 
+                 ct, ct2, pred, pred2, pred_diff,
+                 ctcf=None, atac=None, scatac=None,
+                 atac2=None, scatac2=None):
+        super().__init__(
+            fig_dir, bedpe_dir, gtf_file, chrom, 
+            ct, ct2, pred, pred2, pred_diff,
+            ctcf, atac, scatac, atac2, scatac2)
+        self.tad_score = tad_score
+        self.use_fig_dir = self.fig_dir
+
+    def plot_tad(self, index):
+        actual_start = int(self.tad_score.iloc[index].start)
+        actual_end = int(self.tad_score.iloc[index].end)
+        midplace = (actual_end + actual_start) // 2
+        start = max(0, midplace - 400)
+        locstart, locend = actual_start - start, actual_end - start
+        gene = f'{actual_start}_{actual_end}'
+
+        rank = index + 1
+        self.use_fig_dir = osp.join(self.fig_dir, f'{rank}_{gene}')
+        if not osp.exists(self.use_fig_dir):
+            os.makedirs(self.use_fig_dir)
+
+        if self.ctcf is not None:
+            super().plot_ctcf(start, gene, locstart, locend)
+        if self.atac is not None and self.atac2 is not None:
+            super().plot_atac(start, gene, locstart, locend)
+        if self.scatac is not None and self.scatac2 is not None:
+            raise NotImplementedError
+
+        super().plot_pred(start, gene, locstart, locend)
+        super().plot_track(start, gene, 0, 200)
+    
+    def plot_tads(self, numplot):
+        for i in tqdm(range(numplot)):
+            self.plot_tad(index=i)
