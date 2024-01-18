@@ -4,12 +4,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import scipy.stats
-from scipy.sparse import csr_matrix
-import matplotlib.pyplot as plt
-import gffutils
 import argparse
-import sqlite3
-import json
 from dataloader import DataLoader
 from analyzer import GeneAnalyzer, TADAnalyzer
 from plotgenerator import PairGenePlotGenerator, PairTADPlotGenerator

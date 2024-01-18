@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-while getopts x:y:c:s:e: flag
+while getopts x:y:c:s:e:m: flag
 do
     case "${flag}" in
         x) samplex=${OPTARG};;
@@ -8,6 +8,7 @@ do
         c) control=${OPTARG};;
         s) start=${OPTARG};;
         e) end=${OPTARG};;
+        m) mode=${OPTARG};;
     esac
 done
 
@@ -45,26 +46,23 @@ do
     if [[ "$sampley" == "none" ]]
     then
         echo "UNDEFINED"
-        # time python pipeline.py --input_dir /data/leslie/suny4/processed_input/ \
-        #     --pred_dir /data/leslie/suny4/predictions/chromafold/ \
-        #     --ct $samplex --chrom $chrom --filters gene_type=protein_coding \
-        #     --db_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.db \
-        #     --gtf_file /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation.gtf \
-        #     --num_plot 10 --out_dir "/data/leslie/suny4/pipeline_result/${samplex}"
+        exit 1
     else
         if [[ "$control" == "none" ]]
         then
             time python main.py --root_dir /data/leslie/suny4/processed_input/ \
                 --pred_dir /data/leslie/suny4/predictions/chromafold/ \
-                --ct $samplex $sampley --chrom $chrom --filters gene_type=protein_coding \
+                --out_dir "/data/leslie/suny4/pipeline_result/${samplex}_${sampley}" \
                 --annotation /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation \
-                --out_dir "/data/leslie/suny4/pipeline_result/${samplex}_${sampley}"
+                --ct $samplex $sampley --chrom $chrom --mode $mode\
+                --filters gene_type=protein_coding
         else
             time python main.py --root_dir /data/leslie/suny4/processed_input/ \
                 --pred_dir /data/leslie/suny4/predictions/chromafold/ \
-                --ct $samplex $sampley $control --chrom $chrom --filters gene_type=protein_coding \
+                --out_dir "/data/leslie/suny4/pipeline_result/${samplex}_${sampley}_${control}" \
                 --annotation /data/leslie/suny4/data/chrom_size/gencode.vM10.basic.annotation \
-                --out_dir "/data/leslie/suny4/pipeline_result/${samplex}_${sampley}_${control}"
+                --ct $samplex $sampley $control --chrom $chrom --mode $mode\
+                --filters gene_type=protein_coding
         fi
     fi
 done

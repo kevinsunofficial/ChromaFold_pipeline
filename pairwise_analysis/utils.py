@@ -6,8 +6,6 @@ import scipy
 import torch
 from scipy.sparse import csr_matrix
 from scipy.signal import find_peaks
-import pickle
-import gffutils
 from tqdm import tqdm
 import warnings
 import sqlite3
@@ -150,7 +148,7 @@ def db_query(db, chrom, start=None, end=None, length=10000, featuretype='gene',
     return valid, info
 
 
-def create_bedpe(pred, chrom, ct, bedpe_dir, bedpe_thresh=99., bedpe_margin=None):
+def create_bedpe(pred, chrom, ct, bedpe_dir, bedpe_thresh=99.):
     assert pred.shape[0] == pred.shape[1], f'Matrix is not square {pred.shape}'
     min_len = len(np.diag(pred, 199))
     all_zval = np.concatenate([np.diag(pred, i)[:min_len] for i in range(2, 200)])

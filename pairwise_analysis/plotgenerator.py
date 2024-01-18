@@ -5,8 +5,6 @@ import pandas as pd
 import scipy
 from scipy.sparse import csr_matrix
 import torch
-from sklearn import metrics
-import pickle
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import itertools

@@ -7,10 +7,7 @@ import torch
 from scipy.sparse import csr_matrix
 import pickle
 import gffutils
-from tqdm import tqdm
 import warnings
-import sqlite3
-import json
 
 warnings.filterwarnings('ignore')
 
