@@ -117,7 +117,7 @@ class SinglePlot:
         plt.clf()
 
     def plot_track(self, start, gene, locstart, locend):
-        swstr = '0.05+score**2/10'
+        swstr = '0.01+score**2/50'
         hlstart, hlend = int((locstart + start) * 1e4), int((locend + start) * 1e4)
         hlregion = [f'chr{self.chrom}:{hlstart}-{hlend}']
         gtfs = GTF(self.gtf_file, length_ratio_thresh=0.005, fontsize=32, height=5) + Title('GTF Annotation')
@@ -246,7 +246,7 @@ class PairPlot(SinglePlot):
         plt.clf()
 
     def plot_track(self, start, gene, locstart, locend):
-        swstr = '0.05+score**2/10'
+        swstr = '0.01+score**2/50'
         hlstart, hlend = int((locstart + start) * 1e4), int((locend + start) * 1e4)
         hlregion = [f'chr{self.chrom}:{hlstart}-{hlend}']
         gtfs = GTF(self.gtf_file, length_ratio_thresh=0.005, fontsize=32, height=5) + Title('GTF Annotation')
@@ -308,7 +308,8 @@ class PairGenePlotGenerator(PairPlot):
         super().plot_track(start, gene, locstart, locend)
     
     def plot_genes(self, numplot):
-        for i in tqdm(range(numplot)):
+        usenum = min(numplot, self.gene_score.shape[0])
+        for i in tqdm(range(usenum)):
             self.plot_gene(index=i)
 
 
@@ -349,5 +350,6 @@ class PairTADPlotGenerator(PairPlot):
         super().plot_track(start, gene, 0, 200)
     
     def plot_tads(self, numplot):
-        for i in tqdm(range(numplot)):
+        usenum = min(numplot, self.tad_score.shape[0])
+        for i in tqdm(range(usenum)):
             self.plot_tad(index=i)

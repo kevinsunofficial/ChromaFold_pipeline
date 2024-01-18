@@ -64,6 +64,11 @@ do
                 --ct $samplex $sampley $control --chrom $chrom --mode $mode\
                 --filters gene_type=protein_coding
         fi
+        if [ $? != 0 ];
+        then
+            echo "Error"
+            exit 1
+        fi
     fi
 done
 

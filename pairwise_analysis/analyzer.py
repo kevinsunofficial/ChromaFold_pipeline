@@ -24,7 +24,7 @@ class Analyzer:
         if not region.size:
             return np.nan, np.nan
 
-        if np.nanmean(region1) < .33 and np.nanmean(region2) < .33:
+        if np.nanmean(region1) < .3 and np.nanmean(region2) < .3:
             return np.nan, np.nan
         
         lower, upper = -1, 1
@@ -55,22 +55,20 @@ class GeneAnalyzer(Analyzer):
 
     def get_region(self, pred, start, end):
         start_, end_ = start // 10**4, end // 10**4
-        perimeter = int(np.log(end - start)) + 5
+        perimeter = int(np.log2(end_ - start_ + 1)) + 5
         region = []
-
         first = min(max(0, start_ - perimeter), self.L)
         last = max(0, min(end_ + 1 + perimeter, self.L))
-        
+
         for i in range(first, last):
-            left_margin = (max(0, 200 - i), min(i - first, 200))
-            left = pred[max(0, i - 200):first - 1, i]
-            left_pad = np.pad(left, left_margin, mode='constant', constant_values=np.nan)
-            right_margin = (0, max(0, i + 201 - self.L))
-            right = pred[i, i + 2:min(i + 201, self.L)]
-            right_pad = np.pad(right, right_margin, mode='constant', constant_values=np.nan)
-            region.append(np.array([left_pad, right_pad]).flatten())
+            left = pred[min(max(0, i - 200), first - 1):first - 1, i]
+            right = pred[i, i+2:min(i + 201, self.L)]
+            padded = np.concatenate((left, right), axis=None)
+            padded = np.pad(padded, (0, 398 - len(padded)), mode='constant', constant_values=np.nan)
+            region.append(padded)
         
         return np.array(region)
+
     
     def score_region(self):
         neglog10pval, changes = [], []        

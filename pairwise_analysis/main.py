@@ -15,6 +15,7 @@ warnings.filterwarnings('ignore')
 
 
 def gene_analysis(args):
+    print('Loading data...')
     loader = DataLoader(args.root_dir, args.pred_dir, args.chrom, args.annotation)
 
     ct1, ct2 = args.ct[:2]
@@ -32,6 +33,7 @@ def gene_analysis(args):
     numvalid, genes = db_query(db, args.chrom)
 
     if numvalid:
+        print('Analyzing...')
         analyzer = GeneAnalyzer(pred1, pred2, pred_diff, genes)
         gene_score = analyzer.score_region() # it is very unlikely that this is empty
         
@@ -42,10 +44,10 @@ def gene_analysis(args):
             osp.join(query_dir, f'chr{args.chrom}_significant_genes.csv'),
             header=True, index=False)
 
-        fig_dir = osp.join(args.out_dir, 'figure')
+        fig_dir = osp.join(args.out_dir, 'figure', f'chr{args.chrom}')
         if not osp.exists(fig_dir):
             os.makedirs(fig_dir)
-        bedpe_dir = osp.join(args.out_dir, 'bedpe')
+        bedpe_dir = osp.join(args.out_dir, 'bedpe', f'chr{args.chrom}')
         if not osp.exists(bedpe_dir):
             os.makedirs(bedpe_dir)
         gtf_file = f'{args.annotation}.gtf'
@@ -72,6 +74,7 @@ def gene_analysis(args):
 
 
 def tad_analysis(args):
+    print('Loading data...')
     loader = DataLoader(args.root_dir, args.pred_dir, args.chrom, args.annotation)
 
     ct1, ct2 = args.ct[:2]
@@ -87,6 +90,7 @@ def tad_analysis(args):
 
     vertex = get_tad_vertex(pred_diff)  # it is very unlikely that this is empty
 
+    print('Analyzing...')
     analyzer = TADAnalyzer(pred1, pred2, pred_diff, vertex)
     tad_score = analyzer.score_region()  # it is very unlikely that this is empty
 
@@ -97,10 +101,10 @@ def tad_analysis(args):
         osp.join(query_dir, f'chr{args.chrom}_significant_TADs.csv'),
         header=True, index=False)
 
-    fig_dir = osp.join(args.out_dir, 'figure')
+    fig_dir = osp.join(args.out_dir, 'figure', args.chrom)
     if not osp.exists(fig_dir):
         os.makedirs(fig_dir)
-    bedpe_dir = osp.join(args.out_dir, 'bedpe')
+    bedpe_dir = osp.join(args.out_dir, 'bedpe', args.chrom)
     if not osp.exists(bedpe_dir):
         os.makedirs(bedpe_dir)
     gtf_file = f'{args.annotation}.gtf'
@@ -135,12 +139,12 @@ if __name__ == '__main__':
     parser.add_argument('--featuretype', required=False, type=str, default='gene', help='Feature types to select for db query')
     parser.add_argument('--filters', required=False, nargs='+', default=[], help='Attribute filters in database query, input each filter with \"key=value\" format')
 
-    parser.add_argument('--numplot', required=False, type=int, default=5, help='Number of plots to generate from top significance')
+    parser.add_argument('--numplot', required=False, type=int, default=10, help='Number of plots to generate from top significance')
     parser.add_argument('--extraplot', required=False, nargs='+', default=[], help='Genes to plot if they are not top significance')
 
-    print('\nParsing arguments...')
     args = parser.parse_args()
 
+    print(f'\nANALYSIS BEGIN - chr{args.chrom}')
     if args.mode == 'gene':
         res = gene_analysis(args)
     elif args.mode == 'tad':
