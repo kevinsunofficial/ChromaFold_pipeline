@@ -153,7 +153,7 @@ def db_query(db, chrom, start=None, end=None, length=10000, featuretype='gene',
 def create_bedpe(pred, chrom, ct, bedpe_dir, bedpe_thresh=99., bedpe_margin=None):
     assert pred.shape[0] == pred.shape[1], f'Matrix is not square {pred.shape}'
     min_len = len(np.diag(pred, 199))
-    all_zval = np.concatenate([np.diag(pred, i)[:min_len] for i in range(1, 200)])
+    all_zval = np.concatenate([np.diag(pred, i)[:min_len] for i in range(2, 200)])
     bin_pred = all_zval.reshape(-1, min_len)
     bin_mask = (bin_pred.sum(0) < np.percentile(bin_pred.sum(0), 1))
     zval_cutoff = np.percentile(all_zval, bedpe_thresh) if bedpe_thresh >= 90 else bedpe_thresh
