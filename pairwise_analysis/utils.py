@@ -50,7 +50,7 @@ def topdom(matrix, window_size, cutoff=None):
     return signal
 
 
-def get_tad_vertex(pred, min_dim=10, max_dim=90, num_dim=25, close=15):
+def get_tad_vertex(pred, min_dim=10, max_dim=90, num_dim=25, close=5):
     sizes = np.linspace(max(1, min_dim), min(max_dim, 100), num=num_dim, dtype=int)
     x, y = [], []
     for i, s in enumerate(tqdm(sizes)):
@@ -71,11 +71,8 @@ def get_tad_vertex(pred, min_dim=10, max_dim=90, num_dim=25, close=15):
         else:
             current = raw_vertex.iloc[i].values
             diff = np.abs(merged[-1] - current)
-            if np.sum(diff) <= close:
-                merged[-1] = np.array([
-                    min(merged[-1][0], current[0]),
-                    max(merged[-1][1], current[1])
-                ])
+            if any(diff <= close):
+                merged[-1] = np.array([merged[-1][0], current[1]])
             else:
                 merged.append(current[:])
         i += 1

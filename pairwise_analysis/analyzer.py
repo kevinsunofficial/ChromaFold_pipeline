@@ -26,9 +26,10 @@ class Analyzer:
         if not region.size: 
             return np.full(len(self.tests), np.nan), np.full(len(self.means), np.nan)
 
+        value = region[~np.isnan(region)]
         value1, value2 = region1[~np.isnan(region1)], region2[~np.isnan(region2)]
         p_values = [ranksums(value1, value2).pvalue, ks_2samp(value1, value2).pvalue]
-        changes = [np.nanmean(region), np.mean(np.abs(region, where=~np.isnan(region)))]
+        changes = [np.mean(value), np.mean(np.abs(value))]
 
         return p_values, changes
 

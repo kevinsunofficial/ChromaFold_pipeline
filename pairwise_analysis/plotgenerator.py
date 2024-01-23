@@ -339,8 +339,9 @@ class PairGenePlotGenerator(PairPlot):
         plt.xlabel(f'Mean of {m} values')
         plt.ylabel(f'-log10 p_value for {t} test')
         plt.axhline(threshold, color='grey', linestyle='--', lw=1)
+        plt.axvline(.25, color='grey', linestyle='--', lw=1)
         plt.legend()
-        plt.savefig(self.fig_dir, f'chr{self.chrom}_genes_volcano_plot.png'))
+        plt.savefig(osp.join(self.fig_dir, f'chr{self.chrom}_genes_volcano_plot.png'))
         plt.clf()
 
 
@@ -403,14 +404,16 @@ class PairTADPlotGenerator(PairPlot):
                     s=5, color='purple', label='both')
         
         if text:
+            s, e = 'start', 'end'
             texts = [
-                plt.text(r[m], r[t], f'{r['start']}_{r['end']}', fontsize=9) for i, r in allsigs.iterrows()
+                plt.text(r[m], r[t], f'{r[s]}_{r[e]}', fontsize=9) for i, r in allsigs.iterrows()
             ]
             adjust_text(texts, arrowprops=dict(arrowstyle='-', color='black', lw=.5))
         
         plt.xlabel(f'Mean of {m} values')
         plt.ylabel(f'-log10 p_value for {t} test')
         plt.axhline(threshold, color='grey', linestyle='--', lw=1)
+        plt.axvline(.25, color='grey', linestyle='--', lw=1)
         plt.legend()
-        plt.savefig(self.fig_dir, f'chr{self.chrom}_TADs_volcano_plot.png'))
+        plt.savefig(osp.join(self.fig_dir, f'chr{self.chrom}_TADs_volcano_plot.png'))
         plt.clf()

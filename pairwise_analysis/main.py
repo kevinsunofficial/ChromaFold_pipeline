@@ -66,6 +66,7 @@ def gene_analysis(args):
         plotgenerator.plot_genes(args.numplot)
         for gene in args.extraplot:
             plotgenerator.plot_gene(gene=gene)
+        plotgenerator.volcano_plot(args.test, args.mean)
         
     else:
         print('No valid query result')
@@ -101,10 +102,10 @@ def tad_analysis(args):
         osp.join(query_dir, f'chr{args.chrom}_significant_TADs.csv'),
         header=True, index=False)
 
-    fig_dir = osp.join(args.out_dir, 'figure', args.chrom)
+    fig_dir = osp.join(args.out_dir, 'figure', f'chr{args.chrom}')
     if not osp.exists(fig_dir):
         os.makedirs(fig_dir)
-    bedpe_dir = osp.join(args.out_dir, 'bedpe', args.chrom)
+    bedpe_dir = osp.join(args.out_dir, 'bedpe', f'chr{args.chrom}')
     if not osp.exists(bedpe_dir):
         os.makedirs(bedpe_dir)
     gtf_file = f'{args.annotation}.gtf'
@@ -121,6 +122,7 @@ def tad_analysis(args):
         atac2=loader.load_atac(ct2), scatac2=None
     )
     plotgenerator.plot_tads(args.numplot)
+    plotgenerator.volcano_plot(args.test, args.mean)
 
     return tad_score
 
