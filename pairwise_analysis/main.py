@@ -44,7 +44,7 @@ def gene_analysis(args):
             osp.join(query_dir, f'chr{args.chrom}_significant_genes.csv'),
             header=True, index=False)
 
-        fig_dir = osp.join(args.out_dir, 'figure', f'chr{args.chrom}')
+        fig_dir = osp.join(args.out_dir, 'figure', args.mode, f'chr{args.chrom}')
         if not osp.exists(fig_dir):
             os.makedirs(fig_dir)
         bedpe_dir = osp.join(args.out_dir, 'bedpe', f'chr{args.chrom}')
@@ -102,7 +102,7 @@ def tad_analysis(args):
         osp.join(query_dir, f'chr{args.chrom}_significant_TADs.csv'),
         header=True, index=False)
 
-    fig_dir = osp.join(args.out_dir, 'figure', f'chr{args.chrom}')
+    fig_dir = osp.join(args.out_dir, 'figure', args.mode, f'chr{args.chrom}')
     if not osp.exists(fig_dir):
         os.makedirs(fig_dir)
     bedpe_dir = osp.join(args.out_dir, 'bedpe', f'chr{args.chrom}')

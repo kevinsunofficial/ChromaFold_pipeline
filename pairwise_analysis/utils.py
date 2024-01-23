@@ -50,7 +50,7 @@ def topdom(matrix, window_size, cutoff=None):
     return signal
 
 
-def get_tad_vertex(pred, min_dim=10, max_dim=90, num_dim=25, close=5):
+def get_tad_vertex(pred, min_dim=10, max_dim=90, num_dim=25, close=10):
     sizes = np.linspace(max(1, min_dim), min(max_dim, 100), num=num_dim, dtype=int)
     x, y = [], []
     for i, s in enumerate(tqdm(sizes)):
