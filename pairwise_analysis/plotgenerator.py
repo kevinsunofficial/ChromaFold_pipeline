@@ -10,6 +10,7 @@ from tqdm import tqdm
 import itertools
 import coolbox
 from coolbox.api import *
+from adjustText import adjust_text
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -312,6 +313,36 @@ class PairGenePlotGenerator(PairPlot):
         for i in tqdm(range(usenum)):
             self.plot_gene(index=i)
 
+    def volcano_plot(self, t, m, text=False):
+        threshold = 15 if t == 'ranksums' else 30
+        pvals = self.gene_score[(self.gene_score[t] >= threshold) & (self.gene_score[m] >= .15)]
+        means = self.gene_score[self.gene_score[m] >= .25]
+        allsigs = pd.merge(pvals, means, how='outer')
+        mostsigs = pd.merge(pvals, means, how='inner')
+
+        plt.figure(figsize=(6, 4))
+        plt.scatter(self.gene_score[m], self.gene_score[t], alpha=0.2, 
+                    s=3, color='grey', label='not significant')
+        plt.scatter(pvals[m], pvals[t],
+                    s=5, color='red', label='-log10(p_value)')
+        plt.scatter(means[m], means[t],
+                    s=5, color='blue', label=f'average {m}')
+        plt.scatter(mostsigs[m], mostsigs[t],
+                    s=5, color='purple', label='both')
+        
+        if text:
+            texts = [
+                plt.text(r[m], r[t], r['gene_name'], fontsize=9) for i, r in allsigs.iterrows()
+            ]
+            adjust_text(texts, arrowprops=dict(arrowstyle='-', color='black', lw=.5))
+        
+        plt.xlabel(f'Mean of {m} values')
+        plt.ylabel(f'-log10 p_value for {t} test')
+        plt.axhline(threshold, color='grey', linestyle='--', lw=1)
+        plt.legend()
+        plt.savefig(self.fig_dir, f'chr{self.chrom}_genes_volcano_plot.png'))
+        plt.clf()
+
 
 class PairTADPlotGenerator(PairPlot):
 
@@ -353,3 +384,33 @@ class PairTADPlotGenerator(PairPlot):
         usenum = min(numplot, self.tad_score.shape[0])
         for i in tqdm(range(usenum)):
             self.plot_tad(index=i)
+
+    def volcano_plot(self, t, m, text=False):
+        threshold = 15 if t == 'ranksums' else 30
+        pvals = self.tad_score[(self.tad_score[t] >= threshold) & (self.tad_score[m] >= .15)]
+        means = self.tad_score[self.tad_score[m] >= .25]
+        allsigs = pd.merge(pvals, means, how='outer')
+        mostsigs = pd.merge(pvals, means, how='inner')
+
+        plt.figure(figsize=(6, 4))
+        plt.scatter(self.tad_score[m], self.tad_score[t], alpha=0.2, 
+                    s=3, color='grey', label='not significant')
+        plt.scatter(pvals[m], pvals[t],
+                    s=5, color='red', label='-log10(p_value)')
+        plt.scatter(means[m], means[t],
+                    s=5, color='blue', label=f'average {m}')
+        plt.scatter(mostsigs[m], mostsigs[t],
+                    s=5, color='purple', label='both')
+        
+        if text:
+            texts = [
+                plt.text(r[m], r[t], f'{r['start']}_{r['end']}', fontsize=9) for i, r in allsigs.iterrows()
+            ]
+            adjust_text(texts, arrowprops=dict(arrowstyle='-', color='black', lw=.5))
+        
+        plt.xlabel(f'Mean of {m} values')
+        plt.ylabel(f'-log10 p_value for {t} test')
+        plt.axhline(threshold, color='grey', linestyle='--', lw=1)
+        plt.legend()
+        plt.savefig(self.fig_dir, f'chr{self.chrom}_TADs_volcano_plot.png'))
+        plt.clf()
