@@ -56,11 +56,10 @@ class GeneAnalyzer(Analyzer):
         
         return np.array(region)
 
-    
     def score_region(self, t, m):
         pvalues, changes = [], []
         for i in tqdm(range(self.genes.shape[0])):
-            seqid, start, end, gene_name, gene_id = self.genes.iloc[i]
+            seqid, start, end, gene_name, gene_id = self.genes.iloc[i].tolist()
             region = self.get_region(self.pred, start, end)
             region1 = self.get_region(self.pred1, start, end)
             region2 = self.get_region(self.pred2, start, end)
@@ -71,10 +70,10 @@ class GeneAnalyzer(Analyzer):
         
         pvalues, changes = -np.log10(np.array(pvalues)), np.array(changes)
         genes_score = self.genes.copy()
-        for i, t in enumerate(self.tests):
-            genes_score[t] = pvalues[:, i]
-        for i, m in enumerate(self.means):
-            genes_score[m] = changes[:, i]
+        for i, test in enumerate(self.tests):
+            genes_score[test] = pvalues[:, i]
+        for i, mn in enumerate(self.means):
+            genes_score[mn] = changes[:, i]
 
         genes_score = genes_score[
             ~genes_score.isin([np.nan, np.inf, -np.inf]).any(1)
@@ -98,7 +97,7 @@ class TADAnalyzer(Analyzer):
     def score_region(self, t, m):
         pvalues, changes = [], []      
         for i in tqdm(range(self.vertex.shape[0])):
-            start, end = self.vertex.iloc[i]
+            seqid, start, end = self.vertex.iloc[i].tolist()
             region = self.get_region(self.pred, start, end)
             region1 = self.get_region(self.pred1, start, end)
             region2 = self.get_region(self.pred2, start, end)
@@ -109,13 +108,13 @@ class TADAnalyzer(Analyzer):
         
         pvalues, changes = -np.log10(np.array(pvalues)), np.array(changes)
         tad_score = self.vertex.copy()
-        for i, t in enumerate(self.tests):
-            tad_score[t] = pvalues[:, i]
-        for i, m in enumerate(self.means):
-            tad_score[m] = changes[:, i]
+        for i, test in enumerate(self.tests):
+            tad_score[test] = pvalues[:, i]
+        for i, mn in enumerate(self.means):
+            tad_score[mn] = changes[:, i]
 
         tad_score = tad_score[
             ~tad_score.isin([np.nan, np.inf, -np.inf]).any(1)
-        ].sort_values([m, t], ascending=False).reset_index(drop=True)
+        ].sort_values(t, ascending=False).reset_index(drop=True)
 
         return tad_score

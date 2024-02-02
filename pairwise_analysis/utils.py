@@ -50,26 +50,31 @@ def topdom(matrix, window_size, cutoff=None):
     return signal
 
 
-def get_tad_vertex(pred, min_dim=10, max_dim=90, num_dim=25, close=10):
+def get_tad_vertex(chrom, pred1, pred2, min_dim=20, max_dim=100, num_dim=9, close=10):
     sizes = np.linspace(max(1, min_dim), min(max_dim, 100), num=num_dim, dtype=int)
-    x, y = [], []
+    x, y, ss = [], [], []
     for i, s in enumerate(tqdm(sizes)):
-        signal = topdom(pred, s)
-        peak = find_peaks(signal, prominence=0.25, height=0.1)[0]
-        trough = find_peaks(-signal, prominence=0.25, height=0.1)[0]
-        vertex = np.concatenate((peak, trough), axis=None)
-        x.extend((vertex - s).tolist())
-        y.extend((vertex + s).tolist())
+        signal1 = topdom(pred1, s)
+        vertex1 = find_peaks(signal1, prominence=.75, height=.75)[0]
+        x.extend((vertex1 - s).tolist())
+        y.extend((vertex1 + s).tolist())
+        ss.extend([s] * vertex1.size)
+        
+        signal2 = topdom(pred2, s)
+        vertex2 = find_peaks(signal2, prominence=.75, height=.75)[0]
+        x.extend((vertex2 - s).tolist())
+        y.extend((vertex2 + s).tolist())
+        ss.extend([s] * vertex2.size)
     
-    raw_vertex = pd.DataFrame({'x': x, 'y': y}).sort_values(['x', 'y']).reset_index(drop=True)
+    raw_vertex = pd.DataFrame({'x': x, 'y': y, 's': ss}).sort_values(['s', 'x', 'y']).reset_index(drop=True)
     i, current = 0, None
     merged = []
 
     while i < raw_vertex.shape[0]:
         if not merged:
-            merged.append(raw_vertex.iloc[i].values)
+            merged.append(raw_vertex.iloc[i].values[:2])
         else:
-            current = raw_vertex.iloc[i].values
+            current = raw_vertex.iloc[i].values[:2]
             diff = np.abs(merged[-1] - current)
             if any(diff <= close):
                 merged[-1] = np.array([merged[-1][0], current[1]])
@@ -78,7 +83,7 @@ def get_tad_vertex(pred, min_dim=10, max_dim=90, num_dim=25, close=10):
         i += 1
 
     merged = np.array(merged)
-    merged_vertex = pd.DataFrame({'start': merged[:, 0], 'end': merged[:, 1]})
+    merged_vertex = pd.DataFrame({'chrom': f'chr{chrom}', 'start': merged[:, 0], 'end': merged[:, 1]})
 
     return merged_vertex
 

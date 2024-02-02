@@ -24,9 +24,10 @@ def gene_analysis(args):
     pred1, pred2 = loader.load_pred(ct1), loader.load_pred(ct2)
     predc = None if ctc is None else loader.load_pred(ctc)
 
-    allpred = np.array([pred1, pred2]) if predc is None else np.array([pred1, pred2, predc])
-    preds_qn = quantile_normalize(allpred)
-    pred1, pred2 = preds_qn[0], preds_qn[1]
+    if args.qn:
+        allpred = np.array([pred1, pred2]) if predc is None else np.array([pred1, pred2, predc])
+        preds_qn = quantile_normalize(allpred)
+        pred1, pred2 = preds_qn[0], preds_qn[1]
     pred_diff = pred1 - pred2
 
     db = loader.load_database()
@@ -66,7 +67,7 @@ def gene_analysis(args):
         plotgenerator.plot_genes(args.numplot)
         for gene in args.extraplot:
             plotgenerator.plot_gene(gene=gene)
-        plotgenerator.volcano_plot(args.test, args.mean)
+        # plotgenerator.volcano_plot(args.test, args.mean)
         
     else:
         print('No valid query result')
@@ -84,12 +85,13 @@ def tad_analysis(args):
     pred1, pred2 = loader.load_pred(ct1), loader.load_pred(ct2)
     predc = None if ctc is None else loader.load_pred(ctc)
 
-    allpred = np.array([pred1, pred2]) if predc is None else np.array([pred1, pred2, predc])
-    preds_qn = quantile_normalize(allpred)
-    pred1, pred2 = preds_qn[0], preds_qn[1]
+    if args.qn:
+        allpred = np.array([pred1, pred2]) if predc is None else np.array([pred1, pred2, predc])
+        preds_qn = quantile_normalize(allpred)
+        pred1, pred2 = preds_qn[0], preds_qn[1]
     pred_diff = pred1 - pred2
 
-    vertex = get_tad_vertex(pred_diff)  # it is very unlikely that this is empty
+    vertex = get_tad_vertex(args.chrom, pred1, pred2)  # it is very unlikely that this is empty
 
     print('Analyzing...')
     analyzer = TADAnalyzer(pred1, pred2, pred_diff, vertex)
@@ -122,7 +124,7 @@ def tad_analysis(args):
         atac2=loader.load_atac(ct2), scatac2=None
     )
     plotgenerator.plot_tads(args.numplot)
-    plotgenerator.volcano_plot(args.test, args.mean)
+    # plotgenerator.volcano_plot(args.test, args.mean)
 
     return tad_score
 
@@ -138,6 +140,7 @@ if __name__ == '__main__':
     parser.add_argument('--chrom', required=True, type=str, help='Chromosome number')
     parser.add_argument('--mode', required=True, type=str, help='Mode for the analysis, can choose from \"gene\" or \"tad\"')
     
+    parser.add_argument('--qn', required=False, action='store_true', help='Perform quantile normalization')
     parser.add_argument('--featuretype', required=False, type=str, default='gene', help='Feature types to select for db query')
     parser.add_argument('--filters', required=False, nargs='+', default=[], help='Attribute filters in database query, input each filter with \"key=value\" format')
     parser.add_argument('--test', required=False, default='ranksums', help='Statistical test to use for scoring regions')
