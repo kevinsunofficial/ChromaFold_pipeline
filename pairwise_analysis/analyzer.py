@@ -17,19 +17,22 @@ class Analyzer:
         self.pred = pred_diff
         self.L = pred_diff.shape[0]
         self.tests = ['ranksums', 'ks_2samp']
-        self.means = ['diff', 'abs_diff']
+        self.means = ['mean_diff']
 
     def get_region(self, start, end):
         pass
 
     def score_region(self, region, region1, region2):
         if not region.size: 
-            return np.full(len(self.tests), np.nan), np.full(len(self.means), np.nan)
+            return np.full(len(self.tests), 1), np.full(len(self.means), 0)
 
         value = region[~np.isnan(region)]
         value1, value2 = region1[~np.isnan(region1)], region2[~np.isnan(region2)]
         p_values = [ranksums(value1, value2).pvalue, ks_2samp(value1, value2).pvalue]
-        changes = [np.mean(value), np.mean(np.abs(value))]
+        changes = [np.mean(value)]
+
+        if np.mean(value1) < .2 and np.mean(value2) < .2:
+            p_values = np.full(len(self.tests), 1)
 
         return p_values, changes
 
@@ -42,7 +45,7 @@ class GeneAnalyzer(Analyzer):
 
     def get_region(self, pred, start, end):
         start_, end_ = start // 10**4, end // 10**4
-        perimeter = int(np.log2(end_ - start_ + 1)) + 5
+        perimeter = 10
         region = []
         first = min(max(0, start_ - perimeter), self.L)
         last = max(0, min(end_ + 1 + perimeter, self.L))
@@ -56,7 +59,7 @@ class GeneAnalyzer(Analyzer):
         
         return np.array(region)
 
-    def score_region(self, t, m):
+    def score_region(self, t):
         pvalues, changes = [], []
         for i in tqdm(range(self.genes.shape[0])):
             seqid, start, end, gene_name, gene_id = self.genes.iloc[i].tolist()
@@ -77,7 +80,7 @@ class GeneAnalyzer(Analyzer):
 
         genes_score = genes_score[
             ~genes_score.isin([np.nan, np.inf, -np.inf]).any(1)
-        ].sort_values([m, t], ascending=False).reset_index(drop=True)
+        ].sort_values(t, ascending=False).reset_index(drop=True)
 
         return genes_score
     
@@ -94,7 +97,7 @@ class TADAnalyzer(Analyzer):
 
         return np.array(region)
     
-    def score_region(self, t, m):
+    def score_region(self, t):
         pvalues, changes = [], []      
         for i in tqdm(range(self.vertex.shape[0])):
             seqid, start, end = self.vertex.iloc[i].tolist()

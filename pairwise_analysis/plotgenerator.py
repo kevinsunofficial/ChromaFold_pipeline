@@ -176,7 +176,7 @@ class PairPlot(SinglePlot):
         plt.savefig(osp.join(self.use_fig_dir, 'chr{}_{}_atac.png'.format(self.chrom, gene)))
         plt.clf()
 
-    def plot_scatac(self, start, gene, locstart, locend):
+    def plot_scatac(self, start, gene, locstart, locend, mode):
         plt.rcParams['figure.figsize'] = 8, 6.5
         plt.rcParams['figure.autolayout'] = False
 
@@ -199,8 +199,14 @@ class PairPlot(SinglePlot):
             ax.set_ylim(0, 200)
             ax.set_xticklabels(np.linspace(start+300, start+500, num=len(ax.get_xticks()), dtype=int))
             
-            x = np.arange(300, 500)
-            y1, y2 = np.absolute(2*x-2*locstart), np.absolute(2*x-2*locend)
+            x = np.arange(300, 501)
+            if mode == 'gene':
+                y1, y2 = np.absolute(2 * (x - locstart)), np.absolute(2 * (x - locend))
+            else:
+                mid = (locstart + locend) / 2
+                left, right = np.arange(locstart, mid), np.arange(mid, locend + 1)
+                y1, y2 = 2 * (left - locstart), 2 * (locend - right)
+            
             ax.plot(x, y1, color='magenta', alpha=0.3)
             ax.plot(x, y2, color='magenta', alpha=0.3)
         
@@ -209,7 +215,7 @@ class PairPlot(SinglePlot):
         plt.savefig(osp.join(self.use_fig_dir, 'chr{}_{}_scatac.png'.format(self.chrom, gene)))
         plt.clf()
 
-    def plot_pred(self, start, gene, locstart, locend):
+    def plot_pred(self, start, gene, locstart, locend, mode):
         plt.rcParams['figure.figsize'] = 8, 9.5
         plt.rcParams['figure.autolayout'] = False
 
@@ -236,10 +242,17 @@ class PairPlot(SinglePlot):
             ax.set_ylim(0, 200)
             ax.set_xticklabels(np.linspace(start+300, start+500, num=len(ax.get_xticks()), dtype=int))
             
-            x = np.arange(300, 500)
-            y1, y2 = np.absolute(2*x-2*locstart), np.absolute(2*x-2*locend)
-            ax.plot(x, y1, color='magenta', alpha=0.3)
-            ax.plot(x, y2, color='magenta', alpha=0.3)
+            x = np.arange(300, 501)
+            if mode == 'gene':
+                y1, y2 = np.absolute(2 * (x - locstart)), np.absolute(2 * (x - locend))
+                ax.plot(x, y1, color='magenta', alpha=0.3)
+                ax.plot(x, y2, color='magenta', alpha=0.3)
+            else:
+                mid = (locstart + locend) / 2
+                left, right = np.arange(locstart, mid), np.arange(mid, locend + 1)
+                y1, y2 = 2 * (left - locstart), 2 * (locend - right)
+                ax.plot(left, y1, color='magenta', alpha=0.3)
+                ax.plot(right, y2, color='magenta', alpha=0.3)
             plt.colorbar(img, ax=ax)
             
         plt.xlabel('chr{} (10kb)'.format(self.chrom))
@@ -305,7 +318,7 @@ class PairGenePlotGenerator(PairPlot):
         if self.scatac is not None and self.scatac2 is not None:
             raise NotImplementedError
 
-        super().plot_pred(start, gene, locstart, locend)
+        super().plot_pred(start, gene, locstart, locend, 'gene')
         super().plot_track(start, gene, locstart, locend)
     
     def plot_genes(self, numplot):
@@ -378,7 +391,7 @@ class PairTADPlotGenerator(PairPlot):
         if self.scatac is not None and self.scatac2 is not None:
             raise NotImplementedError
 
-        super().plot_pred(start, gene, locstart, locend)
+        super().plot_pred(start, gene, locstart, locend, 'tad')
         super().plot_track(start, gene, 0, 200)
     
     def plot_tads(self, numplot):

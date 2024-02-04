@@ -36,7 +36,7 @@ def gene_analysis(args):
     if numvalid:
         print('Analyzing...')
         analyzer = GeneAnalyzer(pred1, pred2, pred_diff, genes)
-        gene_score = analyzer.score_region(args.test, args.mean) # it is very unlikely that this is empty
+        gene_score = analyzer.score_region(args.test) # it is very unlikely that this is empty
         
         query_dir = osp.join(args.out_dir, 'query')
         if not osp.exists(query_dir):
@@ -67,7 +67,7 @@ def gene_analysis(args):
         plotgenerator.plot_genes(args.numplot)
         for gene in args.extraplot:
             plotgenerator.plot_gene(gene=gene)
-        # plotgenerator.volcano_plot(args.test, args.mean)
+        # plotgenerator.volcano_plot(args.test)
         
     else:
         print('No valid query result')
@@ -95,7 +95,7 @@ def tad_analysis(args):
 
     print('Analyzing...')
     analyzer = TADAnalyzer(pred1, pred2, pred_diff, vertex)
-    tad_score = analyzer.score_region(args.test, args.mean)  # it is very unlikely that this is empty
+    tad_score = analyzer.score_region(args.test)  # it is very unlikely that this is empty
 
     query_dir = osp.join(args.out_dir, 'query')
     if not osp.exists(query_dir):
@@ -124,7 +124,7 @@ def tad_analysis(args):
         atac2=loader.load_atac(ct2), scatac2=None
     )
     plotgenerator.plot_tads(args.numplot)
-    # plotgenerator.volcano_plot(args.test, args.mean)
+    # plotgenerator.volcano_plot(args.test)
 
     return tad_score
 
@@ -144,9 +144,8 @@ if __name__ == '__main__':
     parser.add_argument('--featuretype', required=False, type=str, default='gene', help='Feature types to select for db query')
     parser.add_argument('--filters', required=False, nargs='+', default=[], help='Attribute filters in database query, input each filter with \"key=value\" format')
     parser.add_argument('--test', required=False, default='ranksums', help='Statistical test to use for scoring regions')
-    parser.add_argument('--mean', required=False, default='abs_diff', help='Type of difference to average for scoring regions')
 
-    parser.add_argument('--numplot', required=False, type=int, default=10, help='Number of plots to generate from top significance')
+    parser.add_argument('--numplot', required=False, type=int, default=5, help='Number of plots to generate from top significance')
     parser.add_argument('--extraplot', required=False, nargs='+', default=[], help='Genes to plot if they are not top significance')
 
     args = parser.parse_args()
